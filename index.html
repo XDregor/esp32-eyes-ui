@@ -6,7 +6,7 @@
 <title>ESP Eyes Control (Remote UI)</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ====== СТИЛИ (полностью из исходной прошивки) ====== */
+/* ====== СТИЛИ (без изменений) ====== */
 body { margin:0; font-family:'Segoe UI',sans-serif; background:#111; color:#eee; }
 .nav {
   display: flex;
@@ -207,6 +207,15 @@ h2, h3 {
   margin-top: 10px;
 }
 #toggleGraphBtn:hover { background: #3a3a3a; }
+.connection-status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.status-connected { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+.status-disconnected { background-color: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
 </style>
 </head>
 <body>
@@ -251,7 +260,7 @@ h2, h3 {
 <!-- Вкладка СЕНСОРЫ -->
 <div id="sensors" class="tab">
   <div class="sensor-table-container">
-    <h2>Buttons</h2>
+    <h2>Buttons <span id="connectionIndicator" class="connection-status status-disconnected"></span></h2>
     <table>
       <tr><th>Button</th><th>State</th></tr>
       <tr><td>Left (GPIO3)</td><td id="leftBtn">-</td></tr>
@@ -330,22 +339,52 @@ h2, h3 {
 const ESP_IP = 'http://192.168.0.223';   // ← ЗАМЕНИ НА РЕАЛЬНЫЙ IP
 // const ESP_IP = 'http://esp32.local';  // или используй mDNS, если включил
 
-// ========== ВЕСЬ ИСХОДНЫЙ JAVASCRIPT (С ЗАМЕНОЙ FETCH) ==========
+// ========== УЛУЧШЕННАЯ ВЕРСИЯ СКРИПТА ==========
 
-// ---------- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ----------
-function openTab(name,btn){
- document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
- document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
- document.getElementById(name).style.display='block';
- btn.classList.add('active');
- resizeCanvas();
-}
+// ---------- Глобальные переменные ----------
+let mode = "auto";
+let eyeWidth = 60, eyeHeight = 90, radius = 13, minGap = 5;
+let leftEye = { x: 150, y: 110, blink: false };
+let rightEye = { x: 270, y: 110, blink: false };
+let activeEye = null;
+let activeEyeForSend = null;
+let strokes = [];
+let currentStroke = null;
+let brushSize = 2;
+let isDrawing = false;
+let textObjects = [];
+let activeTextIndex = -1;
+let textDragOffset = { x: 0, y: 0 };
+const MAX_TEXT_LENGTH = 244;
+const MAX_CHARS_PER_LINE = 30;
+const TEXT_FONT_SIZE = 20;
+let tempTextarea = null;
+let charCounter = null;
+let dragStart = { x: 0, y: 0 };
+let dragThreshold = 5;
+let dragStarted = false;
 
-// ---------- ЛОГИКА ГЛАЗ ----------
+// Для отправки только при изменении
+let lastSentState = '';
+
+// Таймеры
+let updateTimeout;
+let reconnectTimer = null;
+
+// Статус соединения
+let isConnected = false;
+
+// История для графика
+let chart;
+let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
+const MAX_HISTORY = 20;
+
+// ---------- Инициализация canvas ----------
 const canvas = document.getElementById('eyeCanvas');
 const ctx = canvas.getContext('2d');
 const loadingBox = document.getElementById('loadingBox');
 const infoText = document.getElementById('infoText');
+const connectionIndicator = document.getElementById('connectionIndicator');
 
 function resizeCanvas(){
   const dpr = window.devicePixelRatio || 1;
@@ -360,18 +399,7 @@ function resizeCanvas(){
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-let mode = "auto";
-let eyeWidth = 60, eyeHeight = 90, radius = 13, minGap = 5;
-let leftEye = { x: 150, y: 110, blink: false };
-let rightEye = { x: 270, y: 110, blink: false };
-let activeEye = null;
-let activeEyeForSend = null;
-let strokes = [], currentStroke = null, brushSize = 2, isDrawing = false;
-let textObjects = [], activeTextIndex = -1, textDragOffset = { x: 0, y: 0 };
-const MAX_TEXT_LENGTH = 244, MAX_CHARS_PER_LINE = 30, TEXT_FONT_SIZE = 20;
-let tempTextarea = null, charCounter = null;
-let dragStart = { x: 0, y: 0 }, dragThreshold = 5, dragStarted = false;
-
+// ---------- Функции работы с дисплеем (масштабирование) ----------
 function scaleToDisplay(x, y) {
   const cssW = canvas.clientWidth || parseInt(getComputedStyle(canvas).width) || canvas.width;
   const cssH = canvas.clientHeight || parseInt(getComputedStyle(canvas).height) || canvas.height;
@@ -382,13 +410,25 @@ function scaleToDisplay(x, y) {
   return { x: sx, y: sy };
 }
 
+// ---------- Отправка состояния на ESP (с debounce и проверкой изменений) ----------
 function sendUpdateToESP() {
+  if (!ESP_IP) {
+    console.error('ESP_IP not set');
+    return;
+  }
+
   let state = {
     mode: mode,
     leftBlink: leftEye.blink,
     rightBlink: rightEye.blink,
-    strokes: strokes.map(stroke => ({ points: stroke.points.map(p => { let s = scaleToDisplay(p.x, p.y); return [s.x, s.y]; }), size: stroke.size })),
-    currentStroke: currentStroke ? { points: currentStroke.points.map(p => { let s = scaleToDisplay(p.x, p.y); return [s.x, s.y]; }), size: currentStroke.size } : {},
+    strokes: strokes.slice(-50).map(stroke => ({ // ограничиваем до 50 последних штрихов
+      points: stroke.points.map(p => { let s = scaleToDisplay(p.x, p.y); return [s.x, s.y]; }),
+      size: stroke.size
+    })),
+    currentStroke: currentStroke ? {
+      points: currentStroke.points.map(p => { let s = scaleToDisplay(p.x, p.y); return [s.x, s.y]; }),
+      size: currentStroke.size
+    } : {},
     textObjects: textObjects.map(t => ({
       lines: t.lines,
       x: scaleToDisplay(t.x, t.y).x,
@@ -411,20 +451,37 @@ function sendUpdateToESP() {
     state.rightEye = { x: rightScaled.x, y: rightScaled.y };
   }
 
-  // ИСПРАВЛЕНО: добавлен ESP_IP
+  // Проверяем, изменилось ли состояние (простая сверка JSON)
+  const stateStr = JSON.stringify(state);
+  if (stateStr === lastSentState) {
+    return; // ничего не изменилось
+  }
+  lastSentState = stateStr;
+
   fetch(ESP_IP + '/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(state)
-  }).catch(err => console.error('Update error:', err));
+    body: stateStr
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('HTTP error ' + response.status);
+    return response.text();
+  })
+  .then(() => {
+    // успешно
+  })
+  .catch(err => {
+    console.error('Update error:', err);
+    setConnected(false);
+  });
 }
 
-let updateTimeout;
 function debouncedSendUpdate() {
   if (updateTimeout) clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(sendUpdateToESP, 100);
+  updateTimeout = setTimeout(sendUpdateToESP, 250); // увеличено до 250 мс
 }
 
+// ---------- Управление режимами ----------
 function setMode(newMode) {
   if (newMode === mode) return;
   let oldMode = mode;
@@ -452,6 +509,7 @@ function setMode(newMode) {
   loadingBox.style.display = 'none';
   removeTempInput();
   activeEyeForSend = null;
+  lastSentState = ''; // сброс для принудительной отправки
   sendUpdateToESP();
 }
 
@@ -481,9 +539,11 @@ function clearContent() {
   if (mode === 'draw') { strokes = []; currentStroke = null; }
   else if (mode === 'text') { textObjects = []; }
   activeEyeForSend = null;
+  lastSentState = '';
   sendUpdateToESP();
 }
 
+// ---------- Текст ----------
 function wrapText(text, maxLen) {
   const words = text.split(/(\s+)/);
   const lines = [];
@@ -541,6 +601,7 @@ function showTextInput(centerX, centerY) {
     const len = tempTextarea.value.length;
     charCounter.innerText = `${len}/${MAX_TEXT_LENGTH}`;
     activeEyeForSend = null;
+    lastSentState = '';
     sendUpdateToESP();
   });
   tempTextarea.addEventListener('blur', finishTextInput);
@@ -551,6 +612,7 @@ function showTextInput(centerX, centerY) {
     }
   });
   activeEyeForSend = null;
+  lastSentState = '';
   sendUpdateToESP();
 }
 
@@ -564,6 +626,7 @@ function finishTextInput() {
     textObjects.push({ lines: lines, x: (canvas.clientWidth || canvas.width) / 2, y: (canvas.clientHeight || canvas.height) / 2, fontSize: TEXT_FONT_SIZE });
   }
   activeEyeForSend = null;
+  lastSentState = '';
   sendUpdateToESP();
 }
 
@@ -582,6 +645,7 @@ function getTextIndexAt(x, y) {
   return -1;
 }
 
+// ---------- Обработчики событий мыши/тач ----------
 function getPos(evt) {
   let rect = canvas.getBoundingClientRect();
   let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -596,9 +660,11 @@ function isInsideEye(px, py, eye) {
 
 function blinkEye(eye) {
   eye.blink = true;
+  lastSentState = '';
   sendUpdateToESP();
   setTimeout(() => {
     eye.blink = false;
+    lastSentState = '';
     sendUpdateToESP();
   }, 200);
 }
@@ -676,12 +742,15 @@ function handleEnd(evt) {
     activeEyeForSend = null;
   } else if (mode === "draw" && isDrawing) {
     if (currentStroke && currentStroke.points.length > 1) strokes.push(currentStroke);
+    // Ограничиваем количество штрихов
+    if (strokes.length > 50) strokes.shift();
     currentStroke = null; isDrawing = false;
     activeEyeForSend = null;
   } else if (mode === "text") {
     activeTextIndex = -1;
     activeEyeForSend = null;
   }
+  lastSentState = '';
   sendUpdateToESP();
 }
 
@@ -694,6 +763,7 @@ canvas.addEventListener('touchmove', handleMove);
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
+// ---------- Рисование на canvas ----------
 function draw() {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
   if (mode === "auto") {
@@ -739,11 +809,7 @@ CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
   this.lineTo(x, y + r); this.quadraticCurveTo(x, y, x + r, y); this.closePath(); return this;
 };
 
-// ---------- ГРАФИК ----------
-let chart;
-let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
-const MAX_HISTORY = 20;
-
+// ---------- График Chart.js ----------
 function updateChart() {
   if (!chart) return;
   const param = document.getElementById('paramSelect').value;
@@ -805,11 +871,28 @@ document.getElementById('paramSelect').addEventListener('change', function() {
   }
 });
 
-// ---------- ПОЛУЧЕНИЕ ДАННЫХ С ESP ----------
+// ---------- Получение данных с ESP и обновление UI ----------
+function setConnected(connected) {
+  isConnected = connected;
+  if (connected) {
+    connectionIndicator.className = 'connection-status status-connected';
+  } else {
+    connectionIndicator.className = 'connection-status status-disconnected';
+  }
+}
+
 function updateData() {
-  // ИСПРАВЛЕНО: добавлен ESP_IP
+  if (!ESP_IP) {
+    console.error('ESP_IP not set');
+    return;
+  }
+
   fetch(ESP_IP + '/data')
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) throw new Error('HTTP error ' + response.status);
+      setConnected(true);
+      return response.json();
+    })
     .then(data => {
       document.getElementById('leftBtn').innerText = data.left ? 'PRESSED' : 'RELEASED';
       document.getElementById('rightBtn').innerText = data.right ? 'PRESSED' : 'RELEASED';
@@ -861,6 +944,7 @@ function updateData() {
 
       document.getElementById('timestamp').innerText = 'Last updated: ' + (data.last_update || '?') + ' ms';
 
+      // Обновление истории для графика
       if (data.bh1750_ok && data.lux !== undefined) {
         historyLux.push(data.lux);
         if (historyLux.length > MAX_HISTORY) historyLux.shift();
@@ -880,7 +964,13 @@ function updateData() {
 
       updateChart();
     })
-    .catch(err => console.error('Fetch error:', err));
+    .catch(err => {
+      console.error('Fetch error:', err);
+      setConnected(false);
+      // Планируем повторную попытку через 2 секунды
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(updateData, 2000);
+    });
 }
 
 function formatUptime(seconds) {
@@ -891,6 +981,7 @@ function formatUptime(seconds) {
   return days + 'd ' + hours + 'h ' + mins + 'm ' + secs + 's';
 }
 
+// ---------- Запуск ----------
 setInterval(updateData, 1000);
 window.onload = () => { 
   updateData(); 
@@ -899,6 +990,15 @@ window.onload = () => {
 
 updateModeUI();
 draw();
+
+// ---------- Переключение вкладок ----------
+function openTab(name,btn){
+ document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+ document.getElementById(name).style.display='block';
+ btn.classList.add('active');
+ resizeCanvas();
+}
 </script>
 </body>
 </html>
