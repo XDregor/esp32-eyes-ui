@@ -130,42 +130,72 @@
     font-weight: 300;
   }
 
-  /* Navigation */
-  .nav {
-    padding: 20px 20px 0;
+  /* ===== НОВАЯ НАВИГАЦИЯ (из второго кода) ===== */
+  .nav-wrap {
+    padding: 16px 20px 0;
+    animation: fd .5s .08s ease both;
+  }
+  @keyframes fd { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .nav-track {
     display: flex;
     gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 4px;
+    position: relative;
+  }
+  .nav-pill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    margin-left: 4px;
+    margin-right: 4px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: left .35s cubic-bezier(.4,0,.2,1), width .35s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
   }
   .nav-btn {
     flex: 1;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 8px;
-    color: var(--text-muted);
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    position: relative;
+    z-index: 1;
+    background: none;
+    border: none;
     outline: none;
+    cursor: pointer;
+    padding: 9px 6px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
     -webkit-tap-highlight-color: transparent;
+    transition: color .2s;
+    color: var(--text-muted);
   }
-  .nav-btn svg { opacity: 0.6; transition: opacity 0.2s; }
-  .nav-btn.active {
-    background: var(--accent-dim);
-    border-color: rgba(0,255,179,0.3);
-    color: var(--accent);
+  .nav-ico {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform .25s;
+    opacity: 0.6;
   }
-  .nav-btn.active svg { opacity: 1; }
-  .nav-btn:not(.active):hover {
-    background: var(--surface);
-    color: var(--text);
+  .nav-lbl {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    transition: color .2s;
   }
+  .nav-btn.active .nav-lbl { color: var(--accent); }
+  .nav-btn.active .nav-ico { opacity: 1; color: var(--accent); }
+  .nav-btn:not(.active):hover .nav-ico { transform: scale(1.1); }
+  /* ============================================= */
 
   /* Tabs */
   .tab { display: none; padding: 20px; animation: fadeIn 0.2s ease; }
@@ -345,9 +375,8 @@
     font-size: 12px;
     color: var(--text-muted);
     text-align: center;
-    padding-top: 8px;
     font-family: var(--mono);
-    min-height: 20px;
+    min-height: 0px;
   }
 
   /* Text input overlay */
@@ -556,20 +585,29 @@
     <span class="header-sub">control panel</span>
   </div>
 
-  <!-- Nav -->
-  <div class="nav">
-    <button class="nav-btn active" onclick="openTab('eyes',this)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg>
-      Eyes
-    </button>
-    <button class="nav-btn" onclick="openTab('sensors',this)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Sensors
-    </button>
-    <button class="nav-btn" onclick="openTab('esp',this)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-      ESP32
-    </button>
+  <!-- ===== НОВАЯ НАВИГАЦИЯ ===== -->
+  <div class="nav-wrap">
+    <div class="nav-track" id="navTrack">
+      <div class="nav-pill" id="navPill"></div>
+      <button class="nav-btn active" data-tab="0" onclick="switchTab(0, this)">
+        <span class="nav-ico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg>
+        </span>
+        <span class="nav-lbl">Eyes</span>
+      </button>
+      <button class="nav-btn" data-tab="1" onclick="switchTab(1, this)">
+        <span class="nav-ico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </span>
+        <span class="nav-lbl">Sensors</span>
+      </button>
+      <button class="nav-btn" data-tab="2" onclick="switchTab(2, this)">
+        <span class="nav-ico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+        </span>
+        <span class="nav-lbl">ESP32</span>
+      </button>
+    </div>
   </div>
 
   <!-- EYES TAB -->
@@ -806,6 +844,9 @@ let chart;
 let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
 const MAX_HISTORY = 20;
 
+// ========== НОВАЯ ПЕРЕМЕННАЯ ДЛЯ ТЕКУЩЕЙ ВКЛАДКИ ==========
+let curTab = 0; // 0 - eyes, 1 - sensors, 2 - esp
+
 // ========== CANVAS ==========
 const canvas = document.getElementById('eyeCanvas');
 const ctx = canvas.getContext('2d');
@@ -822,6 +863,40 @@ function resizeCanvas() {
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+
+// ========== ФУНКЦИЯ ПОЗИЦИОНИРОВАНИЯ ПИЛЛА ==========
+function pillPos() {
+  const nav = document.getElementById('navTrack');
+  const activeBtn = nav.querySelector('.nav-btn.active');
+  if (!activeBtn) return;
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  const pill = document.getElementById('navPill');
+  pill.style.left = (btnRect.left - navRect.left - 4) + 'px'; // отступ 4px из-за padding:4px
+  pill.style.width = btnRect.width + 'px';
+}
+
+// ========== НОВАЯ ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ТАБОВ ==========
+function switchTab(index, btn) {
+  if (index === curTab) return;
+  curTab = index;
+
+  // Переключаем классы у табов
+  const tabIds = ['eyes', 'sensors', 'esp'];
+  const tabId = tabIds[index];
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+
+  // Обновляем классы у кнопок навигации
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Обновляем положение пилла
+  pillPos();
+
+  // Если перешли на вкладку Eyes, корректируем размер canvas
+  if (index === 0) setTimeout(resizeCanvas, 50);
+}
 
 // ========== SCALE ==========
 function scaleToDisplay(x, y) {
@@ -1300,19 +1375,15 @@ function formatUptime(s) {
   return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`;
 }
 
-// ========== TAB SWITCHING ==========
-function openTab(name, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(name).classList.add('active');
-  btn.classList.add('active');
-  if (name === 'eyes') setTimeout(resizeCanvas, 50);
-}
-
 // ========== INIT ==========
 updateModeUI();
 setInterval(updateData, 1000);
-window.onload = () => { resizeCanvas(); updateData(); };
+window.onload = () => {
+  resizeCanvas();
+  updateData();
+  pillPos(); // устанавливаем положение пилла при загрузке
+};
+window.addEventListener('resize', pillPos); // обновляем при изменении размера окна
 draw();
 </script>
 </body>
