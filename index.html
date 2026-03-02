@@ -499,9 +499,9 @@ function setMode(newMode) {
     bottomToolbar.style.display = 'none';
   }
   if (mode === 'text') {
-    infoText.innerText = `Максимум ${MAX_TEXT_LENGTH} символов. Коснитесь экрана, чтобы ввести текст. Текст можно перемещать.`;
+    infoText.innerText = '';
   } else if (mode === 'draw') {
-    infoText.innerText = 'Рисуйте пальцем. Выберите размер кисти.';
+    infoText.innerText = '';
   } else {
     infoText.innerText = '';
   }
