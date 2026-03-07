@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP Eyes Control (синхронизация + activeEye)</title>
+<title>ESP Eyes Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  /* ----- Стили (полностью идентичны предыдущей версии) ----- */
   :root {
     --bg: #0a0a0f;
     --surface: #10101a;
@@ -26,168 +25,44 @@
     --mono: 'Space Mono', monospace;
     --sans: 'DM Sans', sans-serif;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image:
-      linear-gradient(rgba(0,255,179,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,255,179,0.025) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(0,255,179,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,179,0.025) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
   }
-
   #connectionBadge {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(16,16,26,0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
-    border-radius: 40px;
-    padding: 7px 14px 7px 10px;
-    font-family: var(--mono);
-    font-size: 12px;
-    transition: all 0.3s ease;
+    position: fixed; top: 16px; right: 16px; z-index: 1000;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(16,16,26,0.85); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 40px;
+    padding: 7px 14px 7px 10px; font-family: var(--mono); font-size: 12px; transition: all 0.3s ease;
   }
-  #connectionBadge.connected {
-    border-color: rgba(0,255,179,0.3);
-    color: var(--accent);
-  }
-  #connectionBadge.disconnected {
-    border-color: rgba(255,77,109,0.3);
-    color: var(--red);
-  }
-  .conn-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  #connectionBadge.connected .conn-dot {
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent-glow);
-    animation: pulse-green 2s infinite;
-  }
-  #connectionBadge.disconnected .conn-dot {
-    background: var(--red);
-    box-shadow: 0 0 8px rgba(255,77,109,0.5);
-    animation: pulse-red 1.5s infinite;
-  }
+  #connectionBadge.connected { border-color: rgba(0,255,179,0.3); color: var(--accent); }
+  #connectionBadge.disconnected { border-color: rgba(255,77,109,0.3); color: var(--red); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  #connectionBadge.connected .conn-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); animation: pulse-green 2s infinite; }
+  #connectionBadge.disconnected .conn-dot { background: var(--red); box-shadow: 0 0 8px rgba(255,77,109,0.5); animation: pulse-red 1.5s infinite; }
+  @keyframes pulse-green { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+  @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  @keyframes pulse-green {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.85); }
-  }
-  @keyframes pulse-red {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 40px; }
+  .header { padding: 28px 20px 0; display: flex; align-items: baseline; gap: 10px; }
+  .header-title { font-family: var(--mono); font-size: 18px; font-weight: 700; letter-spacing: 0.05em; color: var(--text); }
+  .header-sub { font-size: 13px; color: var(--text-muted); font-weight: 300; }
 
-  .app {
-    position: relative;
-    z-index: 1;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 0 0 40px;
-  }
-
-  .header {
-    padding: 28px 20px 0;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .header-title {
-    font-family: var(--mono);
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: var(--text);
-  }
-  .header-sub {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 300;
-  }
-
-  .nav-wrap {
-    padding: 16px 20px 0;
-    animation: fd .5s .08s ease both;
-  }
+  .nav-wrap { padding: 16px 20px 0; animation: fd .5s .08s ease both; }
   @keyframes fd { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-
-  .nav-track {
-    display: flex;
-    gap: 4px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 4px;
-    position: relative;
-  }
-  .nav-pill {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    margin-left: 4px;
-    margin-right: 4px;
-    border-radius: 10px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    transition: left .35s cubic-bezier(.4,0,.2,1), width .35s cubic-bezier(.4,0,.2,1);
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0,0,0,.4);
-  }
-  .nav-btn {
-    flex: 1;
-    position: relative;
-    z-index: 1;
-    background: none;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    padding: 9px 6px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    -webkit-tap-highlight-color: transparent;
-    transition: color .2s;
-    color: var(--text-muted);
-  }
-  .nav-ico {
-    font-size: 16px;
-    line-height: 1;
-    transition: transform .25s;
-    opacity: 0.6;
-  }
-  .nav-lbl {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    transition: color .2s;
-  }
+  .nav-track { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px; position: relative; }
+  .nav-pill { position: absolute; top: 4px; bottom: 4px; margin-left: 4px; margin-right: 4px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); transition: left .35s cubic-bezier(.4,0,.2,1), width .35s cubic-bezier(.4,0,.2,1); pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .nav-btn { flex: 1; position: relative; z-index: 1; background: none; border: none; outline: none; cursor: pointer; padding: 9px 6px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; -webkit-tap-highlight-color: transparent; transition: color .2s; color: var(--text-muted); }
+  .nav-ico { font-size: 16px; line-height: 1; transition: transform .25s; opacity: 0.6; }
+  .nav-lbl { font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); transition: color .2s; }
   .nav-btn.active .nav-lbl { color: var(--accent); }
   .nav-btn.active .nav-ico { opacity: 1; color: var(--accent); }
   .nav-btn:not(.active):hover .nav-ico { transform: scale(1.1); }
@@ -196,396 +71,138 @@
   .tab.active { display: block; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 12px;
-  }
-  .card-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .card-title {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
   .card-body { padding: 16px; }
 
-  .mode-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    margin-bottom: 14px;
-  }
-  .mode-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 4px;
-    color: var(--text-muted);
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    text-align: center;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .mode-btn.active {
-    background: var(--accent-dim);
-    border-color: rgba(0,255,179,0.4);
-    color: var(--accent);
-    box-shadow: 0 0 16px rgba(0,255,179,0.1) inset;
-  }
-  .mode-btn:not(.active):hover {
-    background: rgba(255,255,255,0.04);
-    color: var(--text);
-  }
+  .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+  .mode-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 4px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: all 0.18s ease; text-align: center; outline: none; -webkit-tap-highlight-color: transparent; }
+  .mode-btn.active { background: var(--accent-dim); border-color: rgba(0,255,179,0.4); color: var(--accent); box-shadow: 0 0 16px rgba(0,255,179,0.1) inset; }
+  .mode-btn:not(.active):hover { background: rgba(255,255,255,0.04); color: var(--text); }
   .mode-icon { font-size: 18px; display: block; margin-bottom: 4px; }
 
-  .canvas-wrapper {
-    position: relative;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-  #eyeCanvas {
-    width: 100%;
-    height: 200px;
-    background: #000;
-    display: block;
-    touch-action: none;
-  }
-  .canvas-overlay-label {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: rgba(0,255,179,0.4);
-    letter-spacing: 0.1em;
-    pointer-events: none;
-  }
+  .canvas-wrapper { position: relative; border-radius: var(--radius-sm); overflow: hidden; }
+  #eyeCanvas { width: 100%; height: 200px; background: #000; display: block; touch-action: none; }
+  .canvas-overlay-label { position: absolute; bottom: 10px; right: 10px; font-family: var(--mono); font-size: 10px; color: rgba(0,255,179,0.4); letter-spacing: 0.1em; pointer-events: none; }
 
-  #loadingBox {
-    width: 100%;
-    height: 200px;
-    background: #000;
-    border-radius: var(--radius-sm);
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-  .loader-bar-wrap {
-    width: 60%;
-    height: 2px;
-    background: var(--surface2);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .loader-bar {
-    height: 100%;
-    width: 0;
-    background: var(--accent);
-    animation: load 0.8s linear forwards;
-  }
+  #loadingBox { width: 100%; height: 200px; background: #000; border-radius: var(--radius-sm); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .loader-bar-wrap { width: 60%; height: 2px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .loader-bar { height: 100%; width: 0; background: var(--accent); animation: load 0.8s linear forwards; }
   @keyframes load { from { width: 0; } to { width: 100%; } }
 
-  .toolbar {
-    display: none;
-    align-items: center;
-    gap: 12px;
-    padding-top: 12px;
-    flex-wrap: wrap;
-  }
-  .brush-group {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 40px;
-    padding: 6px 10px;
-  }
-  .brush-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.15s;
-    outline: none;
-  }
-  .brush-dot {
-    background: var(--text-dim);
-    border-radius: 50%;
-    transition: background 0.15s;
-  }
+  .toolbar { display: none; align-items: center; gap: 12px; padding-top: 12px; flex-wrap: wrap; }
+  .brush-group { display: flex; gap: 6px; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 40px; padding: 6px 10px; }
+  .brush-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.15s; outline: none; }
+  .brush-dot { background: var(--text-dim); border-radius: 50%; transition: background 0.15s; }
   .brush-btn.active .brush-dot { background: var(--text); }
-  .dot-sm { width: 8px; height: 8px; }
-  .dot-md { width: 14px; height: 14px; }
-  .dot-lg { width: 20px; height: 20px; }
-
-  .clear-btn {
-    background: rgba(255,77,109,0.1);
-    border: 1px solid rgba(255,77,109,0.25);
-    border-radius: 40px;
-    padding: 7px 16px;
-    color: var(--red);
-    font-size: 13px;
-    font-family: var(--sans);
-    cursor: pointer;
-    transition: 0.18s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
+  .dot-sm { width: 8px; height: 8px; } .dot-md { width: 14px; height: 14px; } .dot-lg { width: 20px; height: 20px; }
+  .clear-btn { background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.25); border-radius: 40px; padding: 7px 16px; color: var(--red); font-size: 13px; font-family: var(--sans); cursor: pointer; transition: 0.18s; display: flex; align-items: center; gap: 6px; }
   .clear-btn:hover { background: rgba(255,77,109,0.18); }
 
-  #infoText {
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-    font-family: var(--mono);
-    min-height: 0px;
-  }
+  #infoText { font-size: 12px; color: var(--text-muted); text-align: center; font-family: var(--mono); min-height: 0px; }
 
-  .temp-text-input {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(16,16,26,0.95);
-    border: 1px solid rgba(0,255,179,0.4);
-    border-radius: var(--radius);
-    padding: 14px;
-    color: var(--text);
-    font-size: 15px;
-    width: 82%;
-    max-width: 300px;
-    min-height: 90px;
-    outline: none;
-    z-index: 10;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 24px rgba(0,255,179,0.08);
-    resize: none;
-    font-family: var(--sans);
-    line-height: 1.4;
-    backdrop-filter: blur(8px);
-  }
-  .char-counter {
-    position: absolute;
-    top: 10px; right: 10px;
-    background: rgba(0,0,0,0.7);
-    color: var(--accent);
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-family: var(--mono);
-    z-index: 20;
-    border: 1px solid rgba(0,255,179,0.2);
-  }
+  .temp-text-input { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(16,16,26,0.95); border: 1px solid rgba(0,255,179,0.4); border-radius: var(--radius); padding: 14px; color: var(--text); font-size: 15px; width: 82%; max-width: 300px; min-height: 90px; outline: none; z-index: 10; box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 24px rgba(0,255,179,0.08); resize: none; font-family: var(--sans); line-height: 1.4; backdrop-filter: blur(8px); }
+  .char-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: var(--accent); padding: 3px 8px; border-radius: 20px; font-size: 11px; font-family: var(--mono); z-index: 20; border: 1px solid rgba(0,255,179,0.2); }
 
-  .section-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 20px 0 10px;
-  }
-  .section-label:first-child { margin-top: 0; }
+  /* ===== PRESETS SECTION ===== */
+  .presets-section { margin-top: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; padding: 14px 16px 16px; }
+  .presets-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .presets-section-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
+  /* Draw presets */
+  .draw-presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .draw-preset-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.18s; outline: none; padding: 6px 6px 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
-  .data-table tr {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
+  .draw-preset-btn:hover { border-color: rgba(0,255,179,0.3); background: rgba(0,255,179,0.05); }
+  .draw-preset-btn.selected { border-color: rgba(0,255,179,0.6); background: var(--accent-dim); box-shadow: 0 0 12px rgba(0,255,179,0.1) inset; }
+  .draw-preset-btn canvas { width: 100%; height: 54px; display: block; border-radius: 4px; background: #000; flex-shrink: 0; }
+  .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .draw-preset-btn.selected .draw-preset-label { color: var(--accent); }
+
+  /* Text presets */
+  .text-presets-lang-tabs { display: flex; gap: 4px; }
+  .lang-tab-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 10px; font-weight: 700; cursor: pointer; outline: none; transition: all 0.15s; }
+  .lang-tab-btn.active { background: var(--accent-dim); border-color: rgba(0,255,179,0.35); color: var(--accent); }
+  .lang-tab-btn:not(.active):hover { color: var(--text); }
+  .lang-panel { display: none; margin-top: 10px; }
+  .lang-panel.active { display: block; }
+
+  .text-presets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .text-preset-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; cursor: pointer; text-align: left; outline: none; transition: all 0.18s;
+    -webkit-tap-highlight-color: transparent;
   }
+  .text-preset-btn:hover { border-color: rgba(0,255,179,0.3); background: rgba(0,255,179,0.05); }
+  .text-preset-btn.selected { border-color: rgba(0,255,179,0.6); background: var(--accent-dim); }
+  .text-preset-preview { font-family: var(--mono); font-size: 11px; color: var(--text); line-height: 1.4; display: block; }
+  .text-preset-btn.selected .text-preset-preview { color: var(--accent); }
+
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
   .data-table tr:last-child { border-bottom: none; }
   .data-table tr:hover { background: rgba(255,255,255,0.02); }
-  .data-table td {
-    padding: 11px 0;
-    font-size: 14px;
-  }
-  .data-table td:first-child {
-    color: var(--text-muted);
-    font-weight: 300;
-    width: 55%;
-  }
-  .data-table td:last-child {
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    text-align: right;
-  }
+  .data-table td { padding: 11px 0; font-size: 14px; }
+  .data-table td:first-child { color: var(--text-muted); font-weight: 300; width: 55%; }
+  .data-table td:last-child { color: var(--text); font-family: var(--mono); font-size: 13px; text-align: right; }
 
-  .status-ok {
-    color: var(--accent);
-    font-weight: 700;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.05em;
-  }
-  .status-err {
-    color: var(--red);
-    font-weight: 700;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.05em;
-  }
+  .status-ok { color: var(--accent); font-weight: 700; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; }
+  .status-err { color: var(--red); font-weight: 700; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; }
+  .no-data { font-size: 13px; color: var(--red); font-family: var(--mono); padding: 10px 0; display: none; }
 
-  .no-data {
-    font-size: 13px;
-    color: var(--red);
-    font-family: var(--mono);
-    padding: 10px 0;
-    display: none;
-  }
-
-  .graph-toggle-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 40px;
-    padding: 9px 20px;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-family: var(--sans);
-    cursor: pointer;
-    transition: 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin: 4px auto 0;
-  }
+  .graph-toggle-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 40px; padding: 9px 20px; color: var(--text-muted); font-size: 13px; font-family: var(--sans); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 7px; margin: 4px auto 0; }
   .graph-toggle-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-  .graph-toggle-btn.open {
-    color: var(--accent);
-    border-color: rgba(0,255,179,0.3);
-    background: var(--accent-dim);
-  }
-
+  .graph-toggle-btn.open { color: var(--accent); border-color: rgba(0,255,179,0.3); background: var(--accent-dim); }
   #graphContainer { display: none; margin-top: 12px; }
   .param-select-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
-  #paramSelect {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 8px 16px;
-    border-radius: 40px;
-    font-size: 13px;
-    font-family: var(--sans);
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6b8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 30px;
-  }
-
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-  }
+  #paramSelect { background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 40px; font-size: 13px; font-family: var(--sans); cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6b8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   .info-row:last-child { border-bottom: none; }
   .info-row-label { color: var(--text-muted); font-weight: 300; }
   .info-row-value { font-family: var(--mono); font-size: 13px; color: var(--text); }
-
-  .timestamp {
-    text-align: center;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    padding: 0 20px;
-    margin-top: 4px;
-  }
-
-  .btn-state-badge {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding: 3px 10px;
-    border-radius: 20px;
-  }
-  .btn-state-badge.pressed {
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: 1px solid rgba(0,255,179,0.3);
-  }
-  .btn-state-badge.released {
-    background: var(--surface2);
-    color: var(--text-muted);
-    border: 1px solid var(--border);
-  }
+  .timestamp { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--text-dim); padding: 0 20px; margin-top: 4px; }
+  .btn-state-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 20px; }
+  .btn-state-badge.pressed { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,255,179,0.3); }
+  .btn-state-badge.released { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
 
   @media (max-width: 360px) {
-    .mode-btn { font-size: 9px; padding: 8px 2px; }
-    .mode-icon { font-size: 15px; }
+    .mode-btn { font-size: 9px; padding: 8px 2px; } .mode-icon { font-size: 15px; }
+    .draw-presets-grid { grid-template-columns: repeat(3, 1fr); }
+    .text-presets-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
 
-<!-- Connection badge — fixed top right -->
 <div id="connectionBadge" class="disconnected">
   <div class="conn-dot"></div>
   <span id="connLabel">OFFLINE</span>
 </div>
 
 <div class="app">
-
-  <!-- Header -->
   <div class="header">
     <span class="header-title">ESP EYES</span>
     <span class="header-sub">control panel</span>
   </div>
 
-  <!-- Navigation -->
   <div class="nav-wrap">
     <div class="nav-track" id="navTrack">
       <div class="nav-pill" id="navPill"></div>
       <button class="nav-btn active" data-tab="0" onclick="switchTab(0, this)">
-        <span class="nav-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg>
-        </span>
+        <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg></span>
         <span class="nav-lbl">Eyes</span>
       </button>
       <button class="nav-btn" data-tab="1" onclick="switchTab(1, this)">
-        <span class="nav-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </span>
+        <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
         <span class="nav-lbl">Sensors</span>
       </button>
       <button class="nav-btn" data-tab="2" onclick="switchTab(2, this)">
-        <span class="nav-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-        </span>
+        <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></span>
         <span class="nav-lbl">ESP32</span>
       </button>
     </div>
@@ -595,44 +212,24 @@
   <div id="eyes" class="tab active">
     <div class="card">
       <div class="card-body">
-        <!-- Mode selector -->
         <div class="mode-grid">
-          <button class="mode-btn active" data-mode="auto" onclick="setMode('auto')">
-            <span class="mode-icon">⚡</span>AUTO
-          </button>
-          <button class="mode-btn" data-mode="manual" onclick="setMode('manual')">
-            <span class="mode-icon">✋</span>MANUAL
-          </button>
-          <button class="mode-btn" data-mode="draw" onclick="setMode('draw')">
-            <span class="mode-icon">✏️</span>DRAW
-          </button>
-          <button class="mode-btn" data-mode="text" onclick="setMode('text')">
-            <span class="mode-icon">💬</span>TEXT
-          </button>
+          <button class="mode-btn active" data-mode="auto" onclick="setMode('auto')"><span class="mode-icon">⚡</span>AUTO</button>
+          <button class="mode-btn" data-mode="manual" onclick="setMode('manual')"><span class="mode-icon">✋</span>MANUAL</button>
+          <button class="mode-btn" data-mode="draw" onclick="setMode('draw')"><span class="mode-icon">✏️</span>DRAW</button>
+          <button class="mode-btn" data-mode="text" onclick="setMode('text')"><span class="mode-icon">💬</span>TEXT</button>
         </div>
 
-        <!-- Canvas -->
         <div class="canvas-wrapper">
           <canvas id="eyeCanvas"></canvas>
-          <div id="loadingBox">
-            <div>Loading...</div>
-            <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
-          </div>
+          <div id="loadingBox"><div>Loading...</div><div class="loader-bar-wrap"><div class="loader-bar"></div></div></div>
           <div class="canvas-overlay-label" id="modeLabel">AUTO</div>
         </div>
 
-        <!-- Toolbar -->
         <div id="bottomToolbar" class="toolbar">
           <div id="brushSelector" class="brush-group" style="display:none;">
-            <button class="brush-btn active" onclick="setBrushSize(2)" id="brushSmall">
-              <div class="brush-dot dot-sm"></div>
-            </button>
-            <button class="brush-btn" onclick="setBrushSize(5)" id="brushMedium">
-              <div class="brush-dot dot-md"></div>
-            </button>
-            <button class="brush-btn" onclick="setBrushSize(8)" id="brushLarge">
-              <div class="brush-dot dot-lg"></div>
-            </button>
+            <button class="brush-btn active" onclick="setBrushSize(2)" id="brushSmall"><div class="brush-dot dot-sm"></div></button>
+            <button class="brush-btn" onclick="setBrushSize(5)" id="brushMedium"><div class="brush-dot dot-md"></div></button>
+            <button class="brush-btn" onclick="setBrushSize(8)" id="brushLarge"><div class="brush-dot dot-lg"></div></button>
           </div>
           <button class="clear-btn" onclick="clearContent()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -643,154 +240,121 @@
         <div id="infoText"></div>
       </div>
     </div>
+
+    <!-- DRAW PRESETS — only visible in draw mode -->
+    <div id="panelPresetDraw" class="presets-section" style="display:none;">
+      <div class="presets-section-header">
+        <span class="presets-section-title">✏️ ЗАГОТОВКИ</span>
+      </div>
+      <div class="draw-presets-grid" id="drawPresetsGrid"></div>
+    </div>
+
+    <!-- TEXT PRESETS — only visible in text mode -->
+    <div id="panelPresetText" class="presets-section" style="display:none;">
+      <div class="presets-section-header">
+        <span class="presets-section-title">💬 ФРАЗЫ</span>
+        <div class="text-presets-lang-tabs">
+          <button class="lang-tab-btn active" onclick="switchLang('ru')">RU</button>
+          <button class="lang-tab-btn" onclick="switchLang('uk')">UK</button>
+          <button class="lang-tab-btn" onclick="switchLang('en')">EN</button>
+        </div>
+      </div>
+      <div id="langPanelRu" class="lang-panel active">
+        <div class="text-presets-grid" id="textPresetsRu"></div>
+      </div>
+      <div id="langPanelUk" class="lang-panel">
+        <div class="text-presets-grid" id="textPresetsUk"></div>
+      </div>
+      <div id="langPanelEn" class="lang-panel">
+        <div class="text-presets-grid" id="textPresetsEn"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- SENSORS TAB (без изменений) -->
+  <!-- SENSORS TAB -->
   <div id="sensors" class="tab">
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Buttons</span>
-      </div>
+      <div class="card-header"><span class="card-title">Buttons</span></div>
       <div class="card-body">
         <table class="data-table">
-          <tr>
-            <td>Left (GPIO3)</td>
-            <td><span id="leftBtn" class="btn-state-badge released">RELEASED</span></td>
-          </tr>
-          <tr>
-            <td>Right (GPIO2)</td>
-            <td><span id="rightBtn" class="btn-state-badge released">RELEASED</span></td>
-          </tr>
+          <tr><td>Left (GPIO3)</td><td><span id="leftBtn" class="btn-state-badge released">RELEASED</span></td></tr>
+          <tr><td>Right (GPIO2)</td><td><span id="rightBtn" class="btn-state-badge released">RELEASED</span></td></tr>
         </table>
       </div>
     </div>
-
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">MPU6050</span>
-        <span id="mpuStatus" class="status-err">NOT DETECTED</span>
-      </div>
+      <div class="card-header"><span class="card-title">MPU6050</span><span id="mpuStatus" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
         <div id="mpuNoData" class="no-data" style="display:block;">Sensor not detected</div>
         <table id="mpuTable" class="data-table" style="display:none;">
-          <tr><td>Accel X</td><td id="accelX">—</td></tr>
-          <tr><td>Accel Y</td><td id="accelY">—</td></tr>
-          <tr><td>Accel Z</td><td id="accelZ">—</td></tr>
-          <tr><td>Gyro X</td><td id="gyroX">—</td></tr>
-          <tr><td>Gyro Y</td><td id="gyroY">—</td></tr>
-          <tr><td>Gyro Z</td><td id="gyroZ">—</td></tr>
+          <tr><td>Accel X</td><td id="accelX">—</td></tr><tr><td>Accel Y</td><td id="accelY">—</td></tr><tr><td>Accel Z</td><td id="accelZ">—</td></tr>
+          <tr><td>Gyro X</td><td id="gyroX">—</td></tr><tr><td>Gyro Y</td><td id="gyroY">—</td></tr><tr><td>Gyro Z</td><td id="gyroZ">—</td></tr>
           <tr><td>Temperature</td><td id="mpuTemp">—</td></tr>
         </table>
       </div>
     </div>
-
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">BMP180</span>
-        <span id="bmpStatusLabel" class="status-err">NOT DETECTED</span>
-      </div>
+      <div class="card-header"><span class="card-title">BMP180</span><span id="bmpStatusLabel" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
         <div id="bmpNoData" class="no-data" style="display:block;">Sensor not detected</div>
         <table id="bmpTable" class="data-table" style="display:none;">
-          <tr><td>Temperature</td><td id="bmpTemp">—</td></tr>
-          <tr><td>Pressure</td><td id="pressure">—</td></tr>
-          <tr><td>Altitude</td><td id="altitude">—</td></tr>
+          <tr><td>Temperature</td><td id="bmpTemp">—</td></tr><tr><td>Pressure</td><td id="pressure">—</td></tr><tr><td>Altitude</td><td id="altitude">—</td></tr>
         </table>
       </div>
     </div>
-
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">BH1750</span>
-        <span id="bh1750StatusLabel" class="status-err">NOT DETECTED</span>
-      </div>
+      <div class="card-header"><span class="card-title">BH1750</span><span id="bh1750StatusLabel" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
         <div id="bh1750NoData" class="no-data" style="display:block;">Sensor not detected</div>
-        <table id="bh1750Table" class="data-table" style="display:none;">
-          <tr><td>Illuminance</td><td id="lux">—</td></tr>
-        </table>
+        <table id="bh1750Table" class="data-table" style="display:none;"><tr><td>Illuminance</td><td id="lux">—</td></tr></table>
       </div>
     </div>
-
     <div style="display:flex; justify-content:center;">
       <button id="toggleGraphBtn" class="graph-toggle-btn" onclick="toggleGraph(this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Show Graph
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Show Graph
       </button>
     </div>
-
     <div id="graphContainer" class="card" style="display:none; margin-top: 12px;">
       <div class="card-header">
         <span class="card-title">History</span>
         <div class="param-select-wrap" style="margin:0;">
-          <select id="paramSelect">
-            <option value="lux">Illuminance</option>
-            <option value="bmp_temp">Temperature</option>
-            <option value="pressure">Pressure</option>
-            <option value="altitude">Altitude</option>
-          </select>
+          <select id="paramSelect"><option value="lux">Illuminance</option><option value="bmp_temp">Temperature</option><option value="pressure">Pressure</option><option value="altitude">Altitude</option></select>
         </div>
       </div>
-      <div class="card-body" style="padding:12px;">
-        <canvas id="sensorChart" height="160"></canvas>
-      </div>
+      <div class="card-body" style="padding:12px;"><canvas id="sensorChart" height="160"></canvas></div>
     </div>
   </div>
 
-  <!-- ESP TAB (без изменений) -->
+  <!-- ESP TAB -->
   <div id="esp" class="tab">
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Device Info</span>
-      </div>
+      <div class="card-header"><span class="card-title">Device Info</span></div>
       <div class="card-body">
-        <div class="info-row">
-          <span class="info-row-label">IP Address</span>
-          <span class="info-row-value" id="espIP">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-row-label">Uptime</span>
-          <span class="info-row-value" id="espUptime">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-row-label">WiFi RSSI</span>
-          <span class="info-row-value" id="espRSSI">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-row-label">Firmware</span>
-          <span class="info-row-value" id="espVersion">—</span>
-        </div>
+        <div class="info-row"><span class="info-row-label">IP Address</span><span class="info-row-value" id="espIP">—</span></div>
+        <div class="info-row"><span class="info-row-label">Uptime</span><span class="info-row-value" id="espUptime">—</span></div>
+        <div class="info-row"><span class="info-row-label">WiFi RSSI</span><span class="info-row-value" id="espRSSI">—</span></div>
+        <div class="info-row"><span class="info-row-label">Firmware</span><span class="info-row-value" id="espVersion">—</span></div>
       </div>
     </div>
-
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Sensor Status</span>
-      </div>
+      <div class="card-header"><span class="card-title">Sensor Status</span></div>
       <div class="card-body">
         <table class="data-table">
-          <tr><td>MPU6050</td><td id="espMPUStatus">—</td></tr>
-          <tr><td>BMP180</td><td id="espBMPStatus">—</td></tr>
-          <tr><td>BH1750</td><td id="espBH1750Status">—</td></tr>
-          <tr><td>OLED Display</td><td id="espDisplayStatus">—</td></tr>
+          <tr><td>MPU6050</td><td id="espMPUStatus">—</td></tr><tr><td>BMP180</td><td id="espBMPStatus">—</td></tr>
+          <tr><td>BH1750</td><td id="espBH1750Status">—</td></tr><tr><td>OLED Display</td><td id="espDisplayStatus">—</td></tr>
         </table>
       </div>
     </div>
   </div>
 
   <p class="timestamp" id="timestamp">Last updated: —</p>
-
 </div>
 
 <script>
 // ========== КОНФИГУРАЦИЯ ==========
-const ESP_IP = 'http://192.168.0.223'; // замените на ваш IP
-
-// ========== РАЗМЕРЫ ДИСПЛЕЯ ==========
+const ESP_IP = 'http://192.168.0.223';
 const DISPLAY_W = 128;
 const DISPLAY_H = 64;
-
-// ========== ПАРАМЕТРЫ ГЛАЗ ==========
 const EYE_WIDTH_DISP = 20;
 const EYE_HEIGHT_DISP = 28;
 const EYE_RADIUS_DISP = 4;
@@ -809,7 +373,7 @@ let textObjects = [];
 let activeTextIndex = -1;
 let textDragOffset = { x: 0, y: 0 };
 const MAX_TEXT_LENGTH = 244;
-const MAX_CHARS_PER_LINE = 30;
+const MAX_CHARS_PER_LINE = 21;
 const TEXT_FONT_SIZE_DISP = 8;
 let tempTextarea = null;
 let charCounter = null;
@@ -824,6 +388,67 @@ let chart;
 let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
 const MAX_HISTORY = 20;
 let curTab = 0;
+let selectedDrawPreset = -1;
+let currentLang = 'ru';
+
+// ========== PRESET DATA ==========
+
+const DRAW_PRESETS = [
+  { label: 'СЕРДЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.1){ p.push({x:Math.round(64+18*(16*Math.pow(Math.sin(t),3))/16),y:Math.round(32-18*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/16)}); } return p; })() }] },
+  { label: 'МОЛНИЯ', strokes: [{ size:2, points:[{x:72,y:8},{x:56,y:32},{x:70,y:32},{x:54,y:56}] }] },
+  { label: 'ЗВЕЗДА', strokes: [{ size:2, points:(()=>{ const p=[],cx=64,cy=32,r1=22,r2=10,n=5; for(let i=0;i<=n*2;i++){const a=(Math.PI/n)*i-Math.PI/2,r=i%2===0?r1:r2; p.push({x:Math.round(cx+r*Math.cos(a)),y:Math.round(cy+r*Math.sin(a))}); } return p; })() }] },
+  { label: 'СТРЕЛА →', strokes: [{ size:2, points:[{x:10,y:32},{x:108,y:32}] },{ size:2, points:[{x:108,y:32},{x:88,y:18}] },{ size:2, points:[{x:108,y:32},{x:88,y:46}] }] },
+  { label: 'ДОМИК', strokes: [{ size:2, points:[{x:28,y:50},{x:28,y:30},{x:64,y:10},{x:100,y:30},{x:100,y:50},{x:28,y:50}] },{ size:2, points:[{x:52,y:50},{x:52,y:36},{x:76,y:36},{x:76,y:50}] }] },
+  { label: 'УЛЫБКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(Math.PI+t)),y:Math.round(38+18*Math.sin(Math.PI+t))}); return p; })() },{ size:3, points:[{x:48,y:24},{x:48,y:24}] },{ size:3, points:[{x:80,y:24},{x:80,y:24}] }] },
+  { label: 'ГРУСТЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(t)),y:Math.round(46-18*Math.sin(t))}); return p; })() },{ size:3, points:[{x:48,y:22},{x:48,y:22}] },{ size:3, points:[{x:80,y:22},{x:80,y:22}] }] },
+  { label: 'УДИВЛЕНИЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:3, points:[{x:50,y:26},{x:50,y:26}] },{ size:3, points:[{x:78,y:26},{x:78,y:26}] },{ size:2, points:[{x:64,y:36},{x:64,y:42}] },{ size:2, points:[{x:64,y:46},{x:64,y:48}] }] },
+  { label: 'ЦВЕТОК', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.12){ const r=12+9*Math.cos(6*t); p.push({x:Math.round(64+r*Math.cos(t)),y:Math.round(32+r*Math.sin(t))}); } return p; })() }] },
+  { label: 'ВОЛНА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let x=8;x<=120;x+=3) p.push({x,y:Math.round(32+12*Math.sin((x-8)*0.18))}); return p; })() }] },
+  { label: 'ЗИГЗАГ', strokes: [{ size:2, points:[{x:8,y:18},{x:28,y:46},{x:48,y:18},{x:68,y:46},{x:88,y:18},{x:108,y:46},{x:120,y:32}] }] },
+  { label: 'ДИАМАНТ', strokes: [{ size:2, points:[{x:64,y:6},{x:100,y:32},{x:64,y:58},{x:28,y:32},{x:64,y:6}] },{ size:2, points:[{x:28,y:32},{x:100,y:32}] },{ size:2, points:[{x:64,y:6},{x:50,y:32},{x:64,y:58}] },{ size:2, points:[{x:64,y:6},{x:78,y:32},{x:64,y:58}] }] },
+  { label: 'МИШЕНЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.2) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.25) p.push({x:Math.round(64+13*Math.cos(t)),y:Math.round(32+13*Math.sin(t))}); return p; })() },{ size:3, points:[{x:64,y:32},{x:64,y:32}] }] },
+  { label: 'КРЕСТ', strokes: [{ size:2, points:[{x:64,y:8},{x:64,y:56}] },{ size:2, points:[{x:20,y:32},{x:108,y:32}] }] },
+  { label: 'ЗНАК X', strokes: [{ size:2, points:[{x:26,y:10},{x:102,y:54}] },{ size:2, points:[{x:102,y:10},{x:26,y:54}] }] },
+  { label: 'ГОРЫ', strokes: [{ size:2, points:[{x:4,y:56},{x:28,y:16},{x:50,y:36},{x:72,y:8},{x:96,y:36},{x:114,y:18},{x:124,y:32},{x:124,y:56},{x:4,y:56}] }] },
+  { label: 'РАКЕТА', strokes: [{ size:2, points:[{x:64,y:6},{x:80,y:26},{x:78,y:46},{x:50,y:46},{x:48,y:26},{x:64,y:6}] },{ size:2, points:[{x:50,y:46},{x:44,y:56},{x:52,y:50}] },{ size:2, points:[{x:78,y:46},{x:84,y:56},{x:76,y:50}] },{ size:3, points:[{x:64,y:22},{x:64,y:22}] }] },
+  { label: 'ЧЕЛОВЕК', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(64+6*Math.cos(t)),y:Math.round(12+6*Math.sin(t))}); return p; })() },{ size:2, points:[{x:64,y:18},{x:64,y:36}] },{ size:2, points:[{x:64,y:26},{x:52,y:20}] },{ size:2, points:[{x:64,y:26},{x:76,y:20}] },{ size:2, points:[{x:64,y:36},{x:54,y:52}] },{ size:2, points:[{x:64,y:36},{x:74,y:52}] }] },
+  { label: 'ЗНАК !', strokes: [{ size:3, points:[{x:64,y:8},{x:64,y:40}] },{ size:3, points:[{x:64,y:48},{x:64,y:52}] }] },
+  { label: 'ЗНАК ?', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=Math.PI;t<=Math.PI*1.85;t+=0.15) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(22+12*Math.sin(t))}); return p; })() },{ size:2, points:[{x:64,y:34},{x:64,y:44}] },{ size:3, points:[{x:64,y:50},{x:64,y:52}] }] },
+  { label: 'СПИРАЛЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.5;t<=Math.PI*4.5;t+=0.18){ const r=t*2.2; if(r>28) break; p.push({x:Math.round(64+r*Math.cos(t)),y:Math.round(32+r*Math.sin(t)*0.75)}); } return p; })() }] },
+  { label: 'КОШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(34+14*Math.sin(t))}); return p; })() },{ size:2, points:[{x:50,y:20},{x:48,y:12},{x:56,y:22}] },{ size:2, points:[{x:78,y:20},{x:80,y:12},{x:72,y:22}] },{ size:3, points:[{x:58,y:32},{x:58,y:32}] },{ size:3, points:[{x:70,y:32},{x:70,y:32}] },{ size:2, points:[{x:60,y:38},{x:68,y:38}] }] },
+  { label: 'ИНЬ-ЯНЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.2) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI/2;t<=Math.PI/2;t+=0.15) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=Math.PI/2;t<=Math.PI*1.5;t+=0.2) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(20+12*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI/2;t<=Math.PI/2;t+=0.2) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(44+12*Math.sin(t))}); return p; })() }] },
+  { label: 'ПИКТОГРАММА', strokes: [{ size:2, points:[{x:20,y:50},{x:64,y:10},{x:108,y:50}] },{ size:2, points:[{x:40,y:50},{x:40,y:32},{x:88,y:32},{x:88,y:50}] }] }
+];
+
+const TEXT_PRESETS = {
+  ru: [
+    'Привет!', 'Пока!', 'Спасибо', 'Пожалуйста',
+    'ОК', 'Ошибка!', 'Стоп', 'Вперёд',
+    'Ждите...', 'Загрузка', 'Готово!', 'Занят',
+    'Не трогай!', 'Тихо!', 'Смотри!', 'Осторожно',
+    'Я здесь', 'Иду...', 'Устал', 'Отдыхаю',
+    'Голоден', 'Хочу чай', 'Нет!', 'Да!',
+    'Помогите', 'Всё ок', 'Скучно', 'Весело!'
+  ],
+  uk: [
+    'Привіт!', 'Бувай!', 'Дякую', 'Будь ласка',
+    'Добре', 'Помилка!', 'Стоп', 'Вперед',
+    'Зачекайте', 'Завантаження', 'Готово!', 'Зайнятий',
+    'Не чіпай!', 'Тихо!', 'Дивись!', 'Обережно',
+    'Я тут', 'Іду...', 'Втомився', 'Відпочиваю',
+    'Голодний', 'Хочу каву', 'Ні!', 'Так!',
+    'Допоможіть', 'Все ок', 'Нудно', 'Весело!'
+  ],
+  en: [
+    'Hello!', 'Goodbye!', 'Thanks', 'Please',
+    'OK', 'Error!', 'Stop', 'Go!',
+    'Please wait', 'Loading...', 'Done!', 'Busy',
+    'Do not touch!', 'Be quiet!', 'Look!', 'Careful',
+    'I\'m here', 'Coming...', 'Tired', 'Resting',
+    'Hungry', 'Need coffee', 'No!', 'Yes!',
+    'Help me', 'All good', 'Bored', 'Having fun!'
+  ]
+};
 
 // ========== CANVAS ==========
 const canvas = document.getElementById('eyeCanvas');
@@ -842,23 +467,11 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ========== ПРЕОБРАЗОВАНИЕ КООРДИНАТ ==========
-function canvasToDisplay(canvasX, canvasY) {
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  return {
-    x: Math.round((canvasX / w) * DISPLAY_W),
-    y: Math.round((canvasY / h) * DISPLAY_H)
-  };
+function canvasToDisplay(cx, cy) {
+  return { x: Math.round((cx / canvas.clientWidth) * DISPLAY_W), y: Math.round((cy / canvas.clientHeight) * DISPLAY_H) };
 }
-
-function displayToCanvas(dispX, dispY) {
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  return {
-    x: (dispX / DISPLAY_W) * w,
-    y: (dispY / DISPLAY_H) * h
-  };
+function displayToCanvas(dx, dy) {
+  return { x: (dx / DISPLAY_W) * canvas.clientWidth, y: (dy / DISPLAY_H) * canvas.clientHeight };
 }
 
 // ========== НАВИГАЦИЯ ==========
@@ -885,76 +498,138 @@ function switchTab(index, btn) {
   if (index === 0) setTimeout(resizeCanvas, 50);
 }
 
-// ========== ЗАПРОС АКТУАЛЬНЫХ КООРДИНАТ С ESP ==========
-function requestEyeSync() {
-  if (!ESP_IP) return;
-  fetch(ESP_IP + '/data')
-    .then(r => r.json())
-    .then(data => {
-      // Синхронизируем только если не двигаем глаза
-      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
-        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
-          leftEyeDisp.x = data.left_eye_x;
-          leftEyeDisp.y = data.left_eye_y;
-        }
-        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
-          rightEyeDisp.x = data.right_eye_x;
-          rightEyeDisp.y = data.right_eye_y;
-        }
-      }
-    })
-    .catch(() => {});
+function switchLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['ru','uk','en'][i] === lang);
+  });
+  ['ru','uk','en'].forEach(l => {
+    document.getElementById('langPanel' + l.charAt(0).toUpperCase() + l.slice(1)).classList.toggle('active', l === lang);
+  });
 }
 
-// ========== ОТПРАВКА НА ESP ==========
+// ========== RENDER PRESET THUMBNAIL ==========
+function renderPresetThumb(presetIndex) {
+  const preset = DRAW_PRESETS[presetIndex];
+  const grid = document.getElementById('drawPresetsGrid');
+  const btn = document.createElement('div');
+  btn.className = 'draw-preset-btn';
+  btn.onclick = () => applyDrawPreset(presetIndex);
+
+  const thumbCanvas = document.createElement('canvas');
+  thumbCanvas.width = 128;
+  thumbCanvas.height = 64;
+  btn.appendChild(thumbCanvas);
+
+  const label = document.createElement('div');
+  label.className = 'draw-preset-label';
+  label.textContent = preset.label;
+  btn.appendChild(label);
+
+  btn.id = 'drawPreset_' + presetIndex;
+  grid.appendChild(btn);
+
+  // Draw thumbnail
+  const tc = thumbCanvas.getContext('2d');
+  tc.fillStyle = '#000';
+  tc.fillRect(0, 0, 128, 64);
+  tc.strokeStyle = '#00ffb3';
+  tc.lineCap = 'round';
+  tc.lineJoin = 'round';
+  preset.strokes.forEach(s => {
+    if (!s.points || s.points.length < 1) return;
+    tc.lineWidth = s.size * 1.2;
+    tc.beginPath();
+    tc.moveTo(s.points[0].x, s.points[0].y);
+    if (s.points.length === 1) {
+      tc.arc(s.points[0].x, s.points[0].y, s.size/2, 0, Math.PI*2);
+      tc.fill();
+    } else {
+      for (let i=1; i<s.points.length; i++) tc.lineTo(s.points[i].x, s.points[i].y);
+      tc.stroke();
+    }
+  });
+}
+
+function applyDrawPreset(index) {
+  // Switch to draw mode
+  if (mode !== 'draw') setMode('draw');
+  selectedDrawPreset = index;
+  // Set strokes from preset
+  strokes = JSON.parse(JSON.stringify(DRAW_PRESETS[index].strokes));
+  currentStroke = null;
+  // Update selection UI
+  document.querySelectorAll('.draw-preset-btn').forEach((b,i) => {
+    b.classList.toggle('selected', i === index);
+  });
+  lastSentState = '';
+  sendUpdateToESP();
+}
+
+function renderTextPresets() {
+  ['ru','uk','en'].forEach(lang => {
+    const containerId = 'textPresets' + lang.charAt(0).toUpperCase() + lang.slice(1);
+    const container = document.getElementById(containerId);
+    TEXT_PRESETS[lang].forEach((phrase, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'text-preset-btn';
+      btn.id = `textPreset_${lang}_${i}`;
+      btn.onclick = () => applyTextPreset(phrase, lang, i);
+      const preview = document.createElement('span');
+      preview.className = 'text-preset-preview';
+      preview.textContent = phrase;
+      btn.appendChild(preview);
+      container.appendChild(btn);
+    });
+  });
+}
+
+function applyTextPreset(phrase, lang, index) {
+  if (mode !== 'text') setMode('text');
+  removeTempInput();
+  // Replace all text objects with this phrase centered
+  textObjects = [{
+    lines: wrapText(phrase, MAX_CHARS_PER_LINE),
+    x: DISPLAY_W / 2,
+    y: DISPLAY_H / 2,
+    fontSize: TEXT_FONT_SIZE_DISP
+  }];
+  // Update selection UI
+  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById(`textPreset_${lang}_${index}`);
+  if (el) el.classList.add('selected');
+  lastSentState = '';
+  sendUpdateToESP();
+}
+
+// ========== ESP SYNC ==========
+function requestEyeSync() {
+  if (!ESP_IP) return;
+  fetch(ESP_IP + '/data').then(r => r.json()).then(data => {
+    if (mode === "manual" && !activeEyeDisp && !dragStarted) {
+      if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
+      if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
+    }
+  }).catch(() => {});
+}
+
 function sendUpdateToESP() {
   if (!ESP_IP) return;
   let state = {
-    mode,
-    leftBlink: leftEyeDisp.blink,
-    rightBlink: rightEyeDisp.blink,
-    strokes: strokes.slice(-50).map(s => ({
-      points: s.points.map(p => [p.x, p.y]),
-      size: s.size
-    })),
-    currentStroke: currentStroke ? {
-      points: currentStroke.points.map(p => [p.x, p.y]),
-      size: currentStroke.size
-    } : {},
-    textObjects: textObjects.map(t => ({
-      lines: t.lines,
-      x: t.x,
-      y: t.y,
-      fontSize: t.fontSize
-    })),
+    mode, leftBlink: leftEyeDisp.blink, rightBlink: rightEyeDisp.blink,
+    strokes: strokes.slice(-50).map(s => ({ points: s.points.map(p => [p.x, p.y]), size: s.size })),
+    currentStroke: currentStroke ? { points: currentStroke.points.map(p => [p.x, p.y]), size: currentStroke.size } : {},
+    textObjects: textObjects.map(t => ({ lines: t.lines, x: t.x, y: t.y, fontSize: t.fontSize })),
     isTyping: (tempTextarea !== null)
   };
-
-  // Отправляем только активный глаз, если он есть
-  if (activeEyeDisp === leftEyeDisp) {
-    state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y };
-    state.activeEye = 'left';
-  } else if (activeEyeDisp === rightEyeDisp) {
-    state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y };
-    state.activeEye = 'right';
-  } else {
-    // Нет активного — отправляем оба (например, моргание)
-    state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y };
-    state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y };
-    state.activeEye = null;
-  }
-
+  if (activeEyeDisp === leftEyeDisp) { state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y }; state.activeEye = 'left'; }
+  else if (activeEyeDisp === rightEyeDisp) { state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y }; state.activeEye = 'right'; }
+  else { state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y }; state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y }; state.activeEye = null; }
   const stateStr = JSON.stringify(state);
   if (stateStr === lastSentState) return;
   lastSentState = stateStr;
-
-  fetch(ESP_IP + '/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: stateStr
-  })
-    .then(r => { if (!r.ok) throw new Error(); })
-    .catch(() => setConnected(false));
+  fetch(ESP_IP + '/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: stateStr })
+    .then(r => { if (!r.ok) throw new Error(); }).catch(() => setConnected(false));
 }
 
 function debouncedSendUpdate() {
@@ -979,49 +654,45 @@ function setMode(newMode) {
   } else {
     toolbar.style.display = 'none';
   }
+  // Show/hide preset panels based on mode
+  document.getElementById('panelPresetDraw').style.display = (mode === 'draw') ? 'block' : 'none';
+  document.getElementById('panelPresetText').style.display = (mode === 'text') ? 'block' : 'none';
   document.getElementById('modeLabel').textContent = newMode.toUpperCase();
   canvas.style.display = 'block';
   document.getElementById('loadingBox').style.display = 'none';
   removeTempInput();
   activeEyeDisp = null;
+  selectedDrawPreset = -1;
+  document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
   lastSentState = '';
   sendUpdateToESP();
-  // При переключении в ручной режим запрашиваем актуальные координаты
-  if (newMode === "manual") {
-    setTimeout(requestEyeSync, 100);
-  }
+  if (newMode === "manual") setTimeout(requestEyeSync, 100);
 }
 
 function updateModeUI() {
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
 }
-
 function setBrushSize(size) {
   brushSize = size;
   document.getElementById('brushSmall').classList.toggle('active', size === 2);
   document.getElementById('brushMedium').classList.toggle('active', size === 5);
   document.getElementById('brushLarge').classList.toggle('active', size === 8);
 }
-
 function clearContent() {
-  if (mode === 'draw') { strokes = []; currentStroke = null; }
-  else if (mode === 'text') { textObjects = []; }
-  activeEyeDisp = null;
-  lastSentState = '';
-  sendUpdateToESP();
+  if (mode === 'draw') { strokes = []; currentStroke = null; selectedDrawPreset = -1; document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected')); }
+  else if (mode === 'text') { textObjects = []; document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected')); }
+  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
 // ========== ТЕКСТ ==========
 function wrapText(text, maxLen) {
   const words = text.split(/(\s+)/);
-  const lines = [];
-  let cur = '';
+  const lines = []; let cur = '';
   for (let w of words) {
     if (w.length > maxLen) {
       if (cur.trim()) { lines.push(cur); cur = ''; }
-      for (let j = 0; j < w.length; j += maxLen) lines.push(w.substr(j, maxLen));
+      for (let j=0; j<w.length; j+=maxLen) lines.push(w.substr(j,maxLen));
       continue;
     }
     const test = cur + w;
@@ -1036,10 +707,7 @@ function drawTextBlock(t) {
   let pos = displayToCanvas(t.x, t.y);
   let fontSize = t.fontSize * (canvas.clientHeight / DISPLAY_H);
   ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `${fontSize}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.font = `${fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const lh = fontSize * 1.2;
   const sy = pos.y - (t.lines.length - 1) * lh / 2;
   t.lines.forEach((line, i) => ctx.fillText(line, pos.x, sy + i * lh));
@@ -1063,14 +731,9 @@ function showTextInput() {
   charCounter.className = 'char-counter';
   charCounter.innerText = `0/${MAX_TEXT_LENGTH}`;
   document.querySelector('.canvas-wrapper').appendChild(charCounter);
-  tempTextarea.addEventListener('input', () => {
-    charCounter.innerText = `${tempTextarea.value.length}/${MAX_TEXT_LENGTH}`;
-    activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
-  });
+  tempTextarea.addEventListener('input', () => { charCounter.innerText = `${tempTextarea.value.length}/${MAX_TEXT_LENGTH}`; activeEyeDisp = null; lastSentState = ''; sendUpdateToESP(); });
   tempTextarea.addEventListener('blur', finishTextInput);
-  tempTextarea.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); finishTextInput(); }
-  });
+  tempTextarea.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); finishTextInput(); } });
   activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
@@ -1080,44 +743,28 @@ function finishTextInput() {
   removeTempInput();
   if (text.trim()) {
     if (text.length > MAX_TEXT_LENGTH) text = text.substring(0, MAX_TEXT_LENGTH);
-    textObjects.push({
-      lines: wrapText(text, MAX_CHARS_PER_LINE),
-      x: DISPLAY_W / 2,
-      y: DISPLAY_H / 2,
-      fontSize: TEXT_FONT_SIZE_DISP
-    });
+    textObjects.push({ lines: wrapText(text, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP });
   }
   activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
 function getTextIndexAt(dispX, dispY) {
-  for (let i = textObjects.length - 1; i >= 0; i--) {
+  for (let i=textObjects.length-1; i>=0; i--) {
     let t = textObjects[i];
     let approxWidth = t.lines.reduce((max, line) => Math.max(max, line.length * t.fontSize * 0.6), 0);
     let approxHeight = t.lines.length * t.fontSize * 1.2;
-    if (dispX >= t.x - approxWidth/2 - 5 && dispX <= t.x + approxWidth/2 + 5 &&
-        dispY >= t.y - approxHeight/2 - 5 && dispY <= t.y + approxHeight/2 + 5) {
-      return i;
-    }
+    if (dispX >= t.x-approxWidth/2-5 && dispX <= t.x+approxWidth/2+5 && dispY >= t.y-approxHeight/2-5 && dispY <= t.y+approxHeight/2+5) return i;
   }
   return -1;
 }
 
 // ========== ГЛАЗА ==========
 function isPointInsideEye(dispX, dispY, eyeDisp) {
-  return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 &&
-         Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
+  return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 && Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
 }
-
 function blinkEye(eyeDisp) {
-  eyeDisp.blink = true;
-  lastSentState = '';
-  sendUpdateToESP();
-  setTimeout(() => {
-    eyeDisp.blink = false;
-    lastSentState = '';
-    sendUpdateToESP();
-  }, 200);
+  eyeDisp.blink = true; lastSentState = ''; sendUpdateToESP();
+  setTimeout(() => { eyeDisp.blink = false; lastSentState = ''; sendUpdateToESP(); }, 200);
 }
 
 // ========== СОБЫТИЯ ==========
@@ -1133,30 +780,21 @@ function handleStart(evt) {
   let canvasPos = getPos(evt);
   let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
   if (mode === "manual") {
-    if (isPointInsideEye(dispPos.x, dispPos.y, leftEyeDisp)) {
-      activeEyeDisp = leftEyeDisp;
-    } else if (isPointInsideEye(dispPos.x, dispPos.y, rightEyeDisp)) {
-      activeEyeDisp = rightEyeDisp;
-    } else {
-      activeEyeDisp = null;
-    }
-    if (activeEyeDisp) {
-      dragStart = canvasPos;
-      dragStarted = false;
-    }
+    if (isPointInsideEye(dispPos.x, dispPos.y, leftEyeDisp)) activeEyeDisp = leftEyeDisp;
+    else if (isPointInsideEye(dispPos.x, dispPos.y, rightEyeDisp)) activeEyeDisp = rightEyeDisp;
+    else activeEyeDisp = null;
+    if (activeEyeDisp) { dragStart = canvasPos; dragStarted = false; }
   } else if (mode === "draw") {
     isDrawing = true;
     currentStroke = { points: [{ x: dispPos.x, y: dispPos.y }], size: brushSize };
+    selectedDrawPreset = -1;
+    document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
     activeEyeDisp = null;
   } else if (mode === "text") {
     if (tempTextarea) return;
     let idx = getTextIndexAt(dispPos.x, dispPos.y);
-    if (idx !== -1) {
-      activeTextIndex = idx;
-      textDragOffset = { x: dispPos.x - textObjects[idx].x, y: dispPos.y - textObjects[idx].y };
-    } else {
-      showTextInput();
-    }
+    if (idx !== -1) { activeTextIndex = idx; textDragOffset = { x: dispPos.x - textObjects[idx].x, y: dispPos.y - textObjects[idx].y }; }
+    else showTextInput();
     activeEyeDisp = null;
   }
 }
@@ -1166,34 +804,22 @@ function handleMove(evt) {
   let canvasPos = getPos(evt);
   let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
   if (mode === "manual" && activeEyeDisp) {
-    let dx = canvasPos.x - dragStart.x;
-    let dy = canvasPos.y - dragStart.y;
-    if (!dragStarted && Math.sqrt(dx*dx + dy*dy) >= dragThreshold) {
-      dragStarted = true;
-    }
+    let dx = canvasPos.x - dragStart.x, dy = canvasPos.y - dragStart.y;
+    if (!dragStarted && Math.sqrt(dx*dx+dy*dy) >= dragThreshold) dragStarted = true;
     if (dragStarted) {
-      let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W - EYE_WIDTH_DISP/2, dispPos.x));
-      let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H - EYE_HEIGHT_DISP/2, dispPos.y));
-      if (activeEyeDisp === leftEyeDisp) {
-        nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
-      } else if (activeEyeDisp === rightEyeDisp) {
-        nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
-      }
-      activeEyeDisp.x = nx;
-      activeEyeDisp.y = ny;
-      debouncedSendUpdate();
+      let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W-EYE_WIDTH_DISP/2, dispPos.x));
+      let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H-EYE_HEIGHT_DISP/2, dispPos.y));
+      if (activeEyeDisp === leftEyeDisp) nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
+      else if (activeEyeDisp === rightEyeDisp) nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
+      activeEyeDisp.x = nx; activeEyeDisp.y = ny; debouncedSendUpdate();
     }
-  } else if (mode === "draw" && isDrawing) {
-    if (currentStroke) {
-      currentStroke.points.push({ x: dispPos.x, y: dispPos.y });
-    }
+  } else if (mode === "draw" && isDrawing && currentStroke) {
+    currentStroke.points.push({ x: dispPos.x, y: dispPos.y });
     debouncedSendUpdate();
   } else if (mode === "text" && activeTextIndex !== -1) {
     let t = textObjects[activeTextIndex];
-    let newX = Math.max(0, Math.min(DISPLAY_W, dispPos.x - textDragOffset.x));
-    let newY = Math.max(0, Math.min(DISPLAY_H, dispPos.y - textDragOffset.y));
-    t.x = newX;
-    t.y = newY;
+    t.x = Math.max(0, Math.min(DISPLAY_W, dispPos.x - textDragOffset.x));
+    t.y = Math.max(0, Math.min(DISPLAY_H, dispPos.y - textDragOffset.y));
     debouncedSendUpdate();
   }
 }
@@ -1201,25 +827,17 @@ function handleMove(evt) {
 function handleEnd(evt) {
   evt.preventDefault();
   if (mode === "manual") {
-    if (activeEyeDisp && !dragStarted) {
-      blinkEye(activeEyeDisp);
-    }
-    activeEyeDisp = null;
-    dragStarted = false;
-    // После завершения движения запрашиваем актуальные координаты
+    if (activeEyeDisp && !dragStarted) blinkEye(activeEyeDisp);
+    activeEyeDisp = null; dragStarted = false;
     setTimeout(requestEyeSync, 100);
   } else if (mode === "draw" && isDrawing) {
-    if (currentStroke && currentStroke.points.length > 1) {
-      strokes.push(currentStroke);
-    }
+    if (currentStroke && currentStroke.points.length > 1) strokes.push(currentStroke);
     if (strokes.length > 50) strokes.shift();
-    currentStroke = null;
-    isDrawing = false;
+    currentStroke = null; isDrawing = false;
   } else if (mode === "text") {
     activeTextIndex = -1;
   }
-  lastSentState = '';
-  sendUpdateToESP();
+  lastSentState = ''; sendUpdateToESP();
 }
 
 canvas.addEventListener('mousedown', handleStart);
@@ -1239,64 +857,45 @@ function drawEye(dispEye) {
   let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
   ctx.save();
   if (dispEye.blink) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(pos.x - w/2, pos.y);
-    ctx.lineTo(pos.x + w/2, pos.y);
-    ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath();
+    ctx.moveTo(pos.x - w/2, pos.y); ctx.lineTo(pos.x + w/2, pos.y); ctx.stroke();
   } else {
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r);
-    ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); roundRect(ctx, pos.x-w/2, pos.y-h/2, w, h, r); ctx.fill();
   }
   ctx.restore();
 }
 
 function roundRect(ctx, x, y, w, h, r) {
-  if (w < 2*r) r = w/2;
-  if (h < 2*r) r = h/2;
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y);
-  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r);
-  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h);
-  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r);
-  ctx.quadraticCurveTo(x, y, x+r, y);
-  ctx.closePath();
+  if (w < 2*r) r = w/2; if (h < 2*r) r = h/2;
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
 }
 
 function draw() {
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, w, h);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
   if (mode === "auto") {
-    ctx.fillStyle = 'rgba(0,255,179,0.15)';
-    ctx.font = '700 13px Space Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.letterSpacing = '0.15em';
-    ctx.fillText('AUTO MODE', w/2, h/2);
+    ctx.fillStyle = 'rgba(0,255,179,0.15)'; ctx.font = '700 13px Space Mono, monospace';
+    ctx.textAlign = 'center'; ctx.letterSpacing = '0.15em'; ctx.fillText('AUTO MODE', w/2, h/2);
   } else if (mode === "manual") {
-    drawEye(leftEyeDisp);
-    drawEye(rightEyeDisp);
+    drawEye(leftEyeDisp); drawEye(rightEyeDisp);
   } else if (mode === "draw") {
-    ctx.strokeStyle = '#fff';
-    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
-      if (!s.points || s.points.length < 2) return;
+      if (!s.points || s.points.length < 1) return;
       ctx.lineWidth = s.size * (canvas.clientWidth / DISPLAY_W);
-      ctx.beginPath();
-      let first = displayToCanvas(s.points[0].x, s.points[0].y);
-      ctx.moveTo(first.x, first.y);
-      for (let i = 1; i < s.points.length; i++) {
-        let p = displayToCanvas(s.points[i].x, s.points[i].y);
-        ctx.lineTo(p.x, p.y);
+      if (s.points.length === 1) {
+        ctx.fillStyle = '#fff'; ctx.beginPath();
+        ctx.arc(...Object.values(displayToCanvas(s.points[0].x, s.points[0].y)), s.size * canvas.clientWidth / DISPLAY_W / 2, 0, Math.PI*2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        let first = displayToCanvas(s.points[0].x, s.points[0].y); ctx.moveTo(first.x, first.y);
+        for (let i=1; i<s.points.length; i++) { let p = displayToCanvas(s.points[i].x, s.points[i].y); ctx.lineTo(p.x, p.y); }
+        ctx.stroke();
       }
-      ctx.stroke();
     });
   } else if (mode === "text") {
     textObjects.forEach(t => drawTextBlock(t));
@@ -1311,20 +910,10 @@ function initChart() {
     type: 'line',
     data: {
       labels: Array.from({ length: MAX_HISTORY }, (_, i) => i + 1),
-      datasets: [{
-        label: '',
-        data: [],
-        borderColor: '#00ffb3',
-        backgroundColor: 'rgba(0,255,179,0.06)',
-        tension: 0.3,
-        pointRadius: 2,
-        pointBackgroundColor: '#00ffb3',
-        borderWidth: 2
-      }]
+      datasets: [{ label: '', data: [], borderColor: '#00ffb3', backgroundColor: 'rgba(0,255,179,0.06)', tension: 0.3, pointRadius: 2, pointBackgroundColor: '#00ffb3', borderWidth: 2 }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: true,
+      responsive: true, maintainAspectRatio: true,
       scales: {
         y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 } } },
         x: { grid: { display: false }, ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 } } }
@@ -1364,84 +953,59 @@ function setConnected(connected) {
   label.textContent = connected ? 'ONLINE' : 'OFFLINE';
 }
 
-// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP ==========
+// ========== ПОЛУЧЕНИЕ ДАННЫХ ==========
 function updateData() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data')
     .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
-      // Синхронизация координат глаз (только если не двигаем)
       if (mode === "manual" && !activeEyeDisp && !dragStarted) {
-        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
-          leftEyeDisp.x = data.left_eye_x;
-          leftEyeDisp.y = data.left_eye_y;
-        }
-        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
-          rightEyeDisp.x = data.right_eye_x;
-          rightEyeDisp.y = data.right_eye_y;
-        }
+        if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
+        if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
       }
-
-      // Кнопки
-      const lb = document.getElementById('leftBtn');
-      const rb = document.getElementById('rightBtn');
-      lb.textContent = data.left ? 'PRESSED' : 'RELEASED';
-      lb.className = 'btn-state-badge ' + (data.left ? 'pressed' : 'released');
-      rb.textContent = data.right ? 'PRESSED' : 'RELEASED';
-      rb.className = 'btn-state-badge ' + (data.right ? 'pressed' : 'released');
-
-      // MPU
+      const lb = document.getElementById('leftBtn'); const rb = document.getElementById('rightBtn');
+      lb.textContent = data.left ? 'PRESSED' : 'RELEASED'; lb.className = 'btn-state-badge ' + (data.left ? 'pressed' : 'released');
+      rb.textContent = data.right ? 'PRESSED' : 'RELEASED'; rb.className = 'btn-state-badge ' + (data.right ? 'pressed' : 'released');
       const mpuOk = !!data.mpu_ok;
       document.getElementById('mpuTable').style.display = mpuOk ? 'table' : 'none';
       document.getElementById('mpuNoData').style.display = mpuOk ? 'none' : 'block';
       document.getElementById('mpuStatus').className = mpuOk ? 'status-ok' : 'status-err';
       document.getElementById('mpuStatus').textContent = mpuOk ? 'OK' : 'NOT DETECTED';
       if (mpuOk) {
-        document.getElementById('accelX').textContent = (data.accel_x ?? 0).toFixed(2) + ' m/s²';
-        document.getElementById('accelY').textContent = (data.accel_y ?? 0).toFixed(2) + ' m/s²';
-        document.getElementById('accelZ').textContent = (data.accel_z ?? 0).toFixed(2) + ' m/s²';
-        document.getElementById('gyroX').textContent = (data.gyro_x ?? 0).toFixed(2) + ' rad/s';
-        document.getElementById('gyroY').textContent = (data.gyro_y ?? 0).toFixed(2) + ' rad/s';
-        document.getElementById('gyroZ').textContent = (data.gyro_z ?? 0).toFixed(2) + ' rad/s';
-        document.getElementById('mpuTemp').textContent = (data.mpu_temp ?? 0).toFixed(2) + ' °C';
+        document.getElementById('accelX').textContent = (data.accel_x??0).toFixed(2)+' m/s²';
+        document.getElementById('accelY').textContent = (data.accel_y??0).toFixed(2)+' m/s²';
+        document.getElementById('accelZ').textContent = (data.accel_z??0).toFixed(2)+' m/s²';
+        document.getElementById('gyroX').textContent = (data.gyro_x??0).toFixed(2)+' rad/s';
+        document.getElementById('gyroY').textContent = (data.gyro_y??0).toFixed(2)+' rad/s';
+        document.getElementById('gyroZ').textContent = (data.gyro_z??0).toFixed(2)+' rad/s';
+        document.getElementById('mpuTemp').textContent = (data.mpu_temp??0).toFixed(2)+' °C';
       }
-
-      // BMP
       const bmpOk = !!data.bmp_ok;
       document.getElementById('bmpTable').style.display = bmpOk ? 'table' : 'none';
       document.getElementById('bmpNoData').style.display = bmpOk ? 'none' : 'block';
       document.getElementById('bmpStatusLabel').className = bmpOk ? 'status-ok' : 'status-err';
       document.getElementById('bmpStatusLabel').textContent = bmpOk ? 'OK' : 'NOT DETECTED';
       if (bmpOk) {
-        document.getElementById('bmpTemp').textContent = (data.bmp_temp ?? 0).toFixed(2) + ' °C';
-        document.getElementById('pressure').textContent = (data.pressure ?? 0).toFixed(2) + ' hPa';
-        document.getElementById('altitude').textContent = (data.altitude ?? 0).toFixed(2) + ' m';
+        document.getElementById('bmpTemp').textContent = (data.bmp_temp??0).toFixed(2)+' °C';
+        document.getElementById('pressure').textContent = (data.pressure??0).toFixed(2)+' hPa';
+        document.getElementById('altitude').textContent = (data.altitude??0).toFixed(2)+' m';
       }
-
-      // BH1750
       const bhOk = !!data.bh1750_ok;
       document.getElementById('bh1750Table').style.display = bhOk ? 'table' : 'none';
       document.getElementById('bh1750NoData').style.display = bhOk ? 'none' : 'block';
       document.getElementById('bh1750StatusLabel').className = bhOk ? 'status-ok' : 'status-err';
       document.getElementById('bh1750StatusLabel').textContent = bhOk ? 'OK' : 'NOT DETECTED';
-      if (bhOk) document.getElementById('lux').textContent = (data.lux ?? 0).toFixed(2) + ' lx';
-
-      // ESP info
+      if (bhOk) document.getElementById('lux').textContent = (data.lux??0).toFixed(2)+' lx';
       document.getElementById('espIP').textContent = data.ip || 'N/A';
       document.getElementById('espUptime').textContent = formatUptime(Math.floor(data.uptime || 0));
       document.getElementById('espRSSI').textContent = (data.rssi !== undefined ? data.rssi : 'N/A') + ' dBm';
       document.getElementById('espVersion').textContent = data.version || '1.5';
-
-      const statusHTML = ok => ok
-        ? '<span class="status-ok">OK</span>'
-        : '<span class="status-err">NOT DETECTED</span>';
+      const statusHTML = ok => ok ? '<span class="status-ok">OK</span>' : '<span class="status-err">NOT DETECTED</span>';
       document.getElementById('espMPUStatus').innerHTML = statusHTML(data.mpu_ok);
       document.getElementById('espBMPStatus').innerHTML = statusHTML(data.bmp_ok);
       document.getElementById('espBH1750Status').innerHTML = statusHTML(data.bh1750_ok);
       document.getElementById('espDisplayStatus').innerHTML = statusHTML(data.display_ok);
-
       document.getElementById('timestamp').textContent = 'Last updated: ' + (data.last_update || '?') + ' ms';
-
       const push = (arr, val) => { arr.push(val); if (arr.length > MAX_HISTORY) arr.shift(); };
       if (bhOk && data.lux !== undefined) push(historyLux, data.lux);
       if (bmpOk && data.bmp_temp !== undefined) push(historyBmpTemp, data.bmp_temp);
@@ -1461,13 +1025,22 @@ function formatUptime(s) {
 }
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
-updateModeUI();
-setInterval(updateData, 1000);
-window.onload = () => {
+function init() {
   resizeCanvas();
-  updateData();
+  updateModeUI();
   pillPos();
-};
+
+  // Render draw presets thumbnails
+  DRAW_PRESETS.forEach((_, i) => renderPresetThumb(i));
+
+  // Render text presets
+  renderTextPresets();
+
+  updateData();
+}
+
+setInterval(updateData, 1000);
+window.onload = init;
 window.addEventListener('resize', pillPos);
 draw();
 </script>
