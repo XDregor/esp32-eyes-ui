@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP Eyes Control</title>
+<title>ESP Eyes Control (fixed)</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+  /* ----- Стили без изменений (как в исходном коде) ----- */
   :root {
     --bg: #0a0a0f;
     --surface: #10101a;
@@ -36,7 +37,6 @@
     overflow-x: hidden;
   }
 
-  /* Background grid */
   body::before {
     content: '';
     position: fixed;
@@ -49,7 +49,6 @@
     z-index: 0;
   }
 
-  /* Connection indicator — fixed top right */
   #connectionBadge {
     position: fixed;
     top: 16px;
@@ -101,7 +100,6 @@
     50% { opacity: 0.4; }
   }
 
-  /* Layout wrapper */
   .app {
     position: relative;
     z-index: 1;
@@ -110,7 +108,6 @@
     padding: 0 0 40px;
   }
 
-  /* Header */
   .header {
     padding: 28px 20px 0;
     display: flex;
@@ -130,7 +127,6 @@
     font-weight: 300;
   }
 
-  /* ===== НОВАЯ НАВИГАЦИЯ (из второго кода) ===== */
   .nav-wrap {
     padding: 16px 20px 0;
     animation: fd .5s .08s ease both;
@@ -195,14 +191,11 @@
   .nav-btn.active .nav-lbl { color: var(--accent); }
   .nav-btn.active .nav-ico { opacity: 1; color: var(--accent); }
   .nav-btn:not(.active):hover .nav-ico { transform: scale(1.1); }
-  /* ============================================= */
 
-  /* Tabs */
   .tab { display: none; padding: 20px; animation: fadeIn 0.2s ease; }
   .tab.active { display: block; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* Card */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -227,7 +220,6 @@
   }
   .card-body { padding: 16px; }
 
-  /* Mode selector */
   .mode-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -262,7 +254,6 @@
   }
   .mode-icon { font-size: 18px; display: block; margin-bottom: 4px; }
 
-  /* Canvas area */
   .canvas-wrapper {
     position: relative;
     border-radius: var(--radius-sm);
@@ -286,7 +277,6 @@
     pointer-events: none;
   }
 
-  /* Loading */
   #loadingBox {
     width: 100%;
     height: 200px;
@@ -316,7 +306,6 @@
   }
   @keyframes load { from { width: 0; } to { width: 100%; } }
 
-  /* Draw toolbar */
   .toolbar {
     display: none;
     align-items: center;
@@ -379,7 +368,6 @@
     min-height: 0px;
   }
 
-  /* Text input overlay */
   .temp-text-input {
     position: absolute;
     top: 50%; left: 50%;
@@ -414,7 +402,6 @@
     border: 1px solid rgba(0,255,179,0.2);
   }
 
-  /* Sensor tables */
   .section-label {
     font-family: var(--mono);
     font-size: 10px;
@@ -467,7 +454,6 @@
     letter-spacing: 0.05em;
   }
 
-  /* No-data message */
   .no-data {
     font-size: 13px;
     color: var(--red);
@@ -476,7 +462,6 @@
     display: none;
   }
 
-  /* Graph */
   .graph-toggle-btn {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -519,7 +504,6 @@
     padding-right: 30px;
   }
 
-  /* ESP info */
   .info-row {
     display: flex;
     justify-content: space-between;
@@ -532,7 +516,6 @@
   .info-row-label { color: var(--text-muted); font-weight: 300; }
   .info-row-value { font-family: var(--mono); font-size: 13px; color: var(--text); }
 
-  /* Timestamp */
   .timestamp {
     text-align: center;
     font-family: var(--mono);
@@ -542,7 +525,6 @@
     margin-top: 4px;
   }
 
-  /* Btn state display */
   .btn-state-badge {
     font-family: var(--mono);
     font-size: 11px;
@@ -562,7 +544,6 @@
     border: 1px solid var(--border);
   }
 
-  /* Responsive tweaks */
   @media (max-width: 360px) {
     .mode-btn { font-size: 9px; padding: 8px 2px; }
     .mode-icon { font-size: 15px; }
@@ -585,7 +566,7 @@
     <span class="header-sub">control panel</span>
   </div>
 
-  <!-- ===== НОВАЯ НАВИГАЦИЯ ===== -->
+  <!-- Navigation -->
   <div class="nav-wrap">
     <div class="nav-track" id="navTrack">
       <div class="nav-pill" id="navPill"></div>
@@ -664,10 +645,9 @@
     </div>
   </div>
 
-  <!-- SENSORS TAB -->
+  <!-- SENSORS TAB (без изменений) -->
   <div id="sensors" class="tab">
-
-    <!-- Buttons -->
+    <!-- ... содержимое как в исходном коде ... -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Buttons</span>
@@ -686,7 +666,6 @@
       </div>
     </div>
 
-    <!-- MPU6050 -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">MPU6050</span>
@@ -706,7 +685,6 @@
       </div>
     </div>
 
-    <!-- BMP180 -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">BMP180</span>
@@ -722,7 +700,6 @@
       </div>
     </div>
 
-    <!-- BH1750 -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">BH1750</span>
@@ -736,7 +713,6 @@
       </div>
     </div>
 
-    <!-- Graph toggle -->
     <div style="display:flex; justify-content:center;">
       <button id="toggleGraphBtn" class="graph-toggle-btn" onclick="toggleGraph(this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -760,12 +736,10 @@
         <canvas id="sensorChart" height="160"></canvas>
       </div>
     </div>
-
   </div>
 
-  <!-- ESP TAB -->
+  <!-- ESP TAB (без изменений) -->
   <div id="esp" class="tab">
-
     <div class="card">
       <div class="card-header">
         <span class="card-title">Device Info</span>
@@ -803,7 +777,6 @@
         </table>
       </div>
     </div>
-
   </div>
 
   <p class="timestamp" id="timestamp">Last updated: —</p>
@@ -811,41 +784,63 @@
 </div>
 
 <script>
-// ========== CONFIG ==========
+// ========== КОНФИГУРАЦИЯ ==========
 const ESP_IP = 'http://192.168.0.223';
 
-// ========== STATE ==========
+// ========== РАЗМЕРЫ ДИСПЛЕЯ (ЛОГИЧЕСКОЕ ПРОСТРАНСТВО) ==========
+const DISPLAY_W = 128;
+const DISPLAY_H = 64;
+
+// ========== ПАРАМЕТРЫ ГЛАЗ (В ПИКСЕЛЯХ ДИСПЛЕЯ) ==========
+const EYE_WIDTH_DISP = 20;
+const EYE_HEIGHT_DISP = 28;
+const EYE_RADIUS_DISP = 4;       // скругление
+const MIN_GAP_DISP = 5;           // минимальное расстояние между глазами
+
+// ========== СОСТОЯНИЕ ==========
 let mode = "auto";
-let eyeWidth = 60, eyeHeight = 90, radius = 13, minGap = 5;
-let leftEye = { x: 150, y: 110, blink: false };
-let rightEye = { x: 270, y: 110, blink: false };
-let activeEye = null;
-let activeEyeForSend = null;
-let strokes = [];
-let currentStroke = null;
-let brushSize = 2;
+
+// Глаза теперь хранятся в дисплейных координатах
+let leftEyeDisp = { x: 40, y: 32, blink: false };
+let rightEyeDisp = { x: 88, y: 32, blink: false };
+
+let activeEyeDisp = null;          // ссылка на перемещаемый глаз (leftEyeDisp или rightEyeDisp)
+
+let strokes = [];                  // массив штрихов, точки в дисплейных координатах
+let currentStroke = null;          // текущий штрих (в процессе рисования)
+let brushSize = 2;                 // размер кисти в дисплейных пикселях (логический)
+
 let isDrawing = false;
-let textObjects = [];
+
+let textObjects = [];              // массив текстовых блоков, координаты в дисплейных пикселях
 let activeTextIndex = -1;
 let textDragOffset = { x: 0, y: 0 };
+
+// Параметры текста
 const MAX_TEXT_LENGTH = 244;
 const MAX_CHARS_PER_LINE = 30;
-const TEXT_FONT_SIZE = 20;
+const TEXT_FONT_SIZE_DISP = 8;     // размер шрифта в дисплейных пикселях (будет масштабироваться)
+
 let tempTextarea = null;
 let charCounter = null;
+
+// Для определения начала перетаскивания
 let dragStart = { x: 0, y: 0 };
-let dragThreshold = 5;
+const dragThreshold = 5;            // порог в canvas-пикселях (не в дисплейных)
 let dragStarted = false;
+
 let lastSentState = '';
 let updateTimeout;
 let reconnectTimer = null;
 let isConnected = false;
+
+// Графики (без изменений)
 let chart;
 let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
 const MAX_HISTORY = 20;
 
-// ========== НОВАЯ ПЕРЕМЕННАЯ ДЛЯ ТЕКУЩЕЙ ВКЛАДКИ ==========
-let curTab = 0; // 0 - eyes, 1 - sensors, 2 - esp
+// Текущая вкладка
+let curTab = 0;
 
 // ========== CANVAS ==========
 const canvas = document.getElementById('eyeCanvas');
@@ -864,7 +859,26 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ========== ФУНКЦИЯ ПОЗИЦИОНИРОВАНИЯ ПИЛЛА ==========
+// ========== МАСШТАБИРОВАНИЕ КООРДИНАТ ==========
+function canvasToDisplay(canvasX, canvasY) {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  return {
+    x: Math.round((canvasX / w) * DISPLAY_W),
+    y: Math.round((canvasY / h) * DISPLAY_H)
+  };
+}
+
+function displayToCanvas(dispX, dispY) {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  return {
+    x: (dispX / DISPLAY_W) * w,
+    y: (dispY / DISPLAY_H) * h
+  };
+}
+
+// ========== НАВИГАЦИЯ (без изменений) ==========
 function pillPos() {
   const nav = document.getElementById('navTrack');
   const activeBtn = nav.querySelector('.nav-btn.active');
@@ -872,92 +886,70 @@ function pillPos() {
   const navRect = nav.getBoundingClientRect();
   const btnRect = activeBtn.getBoundingClientRect();
   const pill = document.getElementById('navPill');
-  pill.style.left = (btnRect.left - navRect.left - 4) + 'px'; // отступ 4px из-за padding:4px
+  pill.style.left = (btnRect.left - navRect.left - 4) + 'px';
   pill.style.width = btnRect.width + 'px';
 }
 
-// ========== НОВАЯ ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ТАБОВ ==========
 function switchTab(index, btn) {
   if (index === curTab) return;
   curTab = index;
-
-  // Переключаем классы у табов
   const tabIds = ['eyes', 'sensors', 'esp'];
-  const tabId = tabIds[index];
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-
-  // Обновляем классы у кнопок навигации
+  document.getElementById(tabIds[index]).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-
-  // Обновляем положение пилла
   pillPos();
-
-  // Если перешли на вкладку Eyes, корректируем размер canvas
   if (index === 0) setTimeout(resizeCanvas, 50);
 }
 
-// ========== SCALE ==========
-function scaleToDisplay(x, y) {
-  const cssW = canvas.clientWidth || parseInt(getComputedStyle(canvas).width) || canvas.width;
-  const cssH = canvas.clientHeight || parseInt(getComputedStyle(canvas).height) || canvas.height;
-  return {
-    x: Math.min(127, Math.max(0, Math.round(x * 128 / cssW))),
-    y: Math.min(63, Math.max(0, Math.round(y * 64 / cssH)))
-  };
-}
-
-// ========== SEND ==========
+// ========== ОТПРАВКА НА ESP ==========
 function sendUpdateToESP() {
   if (!ESP_IP) return;
+
+  // Состояние уже в дисплейных координатах – отправляем как есть
   let state = {
     mode,
-    leftBlink: leftEye.blink,
-    rightBlink: rightEye.blink,
+    leftBlink: leftEyeDisp.blink,
+    rightBlink: rightEyeDisp.blink,
+    leftEye: { x: leftEyeDisp.x, y: leftEyeDisp.y },
+    rightEye: { x: rightEyeDisp.x, y: rightEyeDisp.y },
     strokes: strokes.slice(-50).map(s => ({
-      points: s.points.map(p => { let d = scaleToDisplay(p.x, p.y); return [d.x, d.y]; }),
+      points: s.points.map(p => [p.x, p.y]),
       size: s.size
     })),
     currentStroke: currentStroke ? {
-      points: currentStroke.points.map(p => { let d = scaleToDisplay(p.x, p.y); return [d.x, d.y]; }),
+      points: currentStroke.points.map(p => [p.x, p.y]),
       size: currentStroke.size
     } : {},
     textObjects: textObjects.map(t => ({
       lines: t.lines,
-      x: scaleToDisplay(t.x, t.y).x,
-      y: scaleToDisplay(t.x, t.y).y
+      x: t.x,
+      y: t.y,
+      fontSize: t.fontSize
     })),
     isTyping: (tempTextarea !== null),
-    activeEye: activeEyeForSend
+    activeEye: activeEyeDisp === leftEyeDisp ? 'left' : (activeEyeDisp === rightEyeDisp ? 'right' : null)
   };
-  if (activeEyeForSend === 'left') {
-    let s = scaleToDisplay(leftEye.x, leftEye.y);
-    state.leftEye = { x: s.x, y: s.y };
-  } else if (activeEyeForSend === 'right') {
-    let s = scaleToDisplay(rightEye.x, rightEye.y);
-    state.rightEye = { x: s.x, y: s.y };
-  } else {
-    state.leftEye = scaleToDisplay(leftEye.x, leftEye.y);
-    state.rightEye = scaleToDisplay(rightEye.x, rightEye.y);
-  }
+
   const stateStr = JSON.stringify(state);
   if (stateStr === lastSentState) return;
   lastSentState = stateStr;
+
   fetch(ESP_IP + '/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: stateStr
-  }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
-  .catch(() => setConnected(false));
+  })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
+    .catch(() => setConnected(false));
 }
 
 function debouncedSendUpdate() {
   if (updateTimeout) clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(sendUpdateToESP, 250);
+  updateTimeout = setTimeout(sendUpdateToESP, 80); // уменьшили до 80 мс
 }
 
-// ========== MODE ==========
+// ========== РЕЖИМЫ ==========
 function setMode(newMode) {
   if (newMode === mode) return;
   let oldMode = mode;
@@ -978,7 +970,7 @@ function setMode(newMode) {
   canvas.style.display = 'block';
   document.getElementById('loadingBox').style.display = 'none';
   removeTempInput();
-  activeEyeForSend = null;
+  activeEyeDisp = null;
   lastSentState = '';
   sendUpdateToESP();
 }
@@ -999,12 +991,12 @@ function setBrushSize(size) {
 function clearContent() {
   if (mode === 'draw') { strokes = []; currentStroke = null; }
   else if (mode === 'text') { textObjects = []; }
-  activeEyeForSend = null;
+  activeEyeDisp = null;
   lastSentState = '';
   sendUpdateToESP();
 }
 
-// ========== TEXT ==========
+// ========== ТЕКСТ (переделано для дисплейных координат) ==========
 function wrapText(text, maxLen) {
   const words = text.split(/(\s+)/);
   const lines = [];
@@ -1024,14 +1016,17 @@ function wrapText(text, maxLen) {
 }
 
 function drawTextBlock(t) {
+  // Масштабируем позицию и размер шрифта
+  let pos = displayToCanvas(t.x, t.y);
+  let fontSize = t.fontSize * (canvas.clientHeight / DISPLAY_H); // пропорционально высоте
   ctx.save();
   ctx.fillStyle = '#fff';
-  ctx.font = `${t.fontSize}px sans-serif`;
+  ctx.font = `${fontSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const lh = t.fontSize * 1.2;
-  const sy = t.y - (t.lines.length - 1) * lh / 2;
-  t.lines.forEach((line, i) => ctx.fillText(line, t.x, sy + i * lh));
+  const lh = fontSize * 1.2;
+  const sy = pos.y - (t.lines.length - 1) * lh / 2;
+  t.lines.forEach((line, i) => ctx.fillText(line, pos.x, sy + i * lh));
   ctx.restore();
 }
 
@@ -1054,13 +1049,13 @@ function showTextInput() {
   document.querySelector('.canvas-wrapper').appendChild(charCounter);
   tempTextarea.addEventListener('input', () => {
     charCounter.innerText = `${tempTextarea.value.length}/${MAX_TEXT_LENGTH}`;
-    activeEyeForSend = null; lastSentState = ''; sendUpdateToESP();
+    activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
   });
   tempTextarea.addEventListener('blur', finishTextInput);
   tempTextarea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); finishTextInput(); }
   });
-  activeEyeForSend = null; lastSentState = ''; sendUpdateToESP();
+  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
 function finishTextInput() {
@@ -1069,30 +1064,49 @@ function finishTextInput() {
   removeTempInput();
   if (text.trim()) {
     if (text.length > MAX_TEXT_LENGTH) text = text.substring(0, MAX_TEXT_LENGTH);
+    // Создаём текст в центре дисплея
     textObjects.push({
       lines: wrapText(text, MAX_CHARS_PER_LINE),
-      x: (canvas.clientWidth || canvas.width) / 2,
-      y: (canvas.clientHeight || canvas.height) / 2,
-      fontSize: TEXT_FONT_SIZE
+      x: DISPLAY_W / 2,
+      y: DISPLAY_H / 2,
+      fontSize: TEXT_FONT_SIZE_DISP
     });
   }
-  activeEyeForSend = null; lastSentState = ''; sendUpdateToESP();
+  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
-function getTextIndexAt(x, y) {
+function getTextIndexAt(dispX, dispY) {
   for (let i = textObjects.length - 1; i >= 0; i--) {
     let t = textObjects[i];
-    ctx.save(); ctx.font = `${t.fontSize}px sans-serif`;
-    const lh = t.fontSize * 1.2;
-    const mw = Math.max(...t.lines.map(l => ctx.measureText(l).width));
-    const th = t.lines.length * lh;
-    ctx.restore();
-    if (x >= t.x - mw/2 - 10 && x <= t.x + mw/2 + 10 && y >= t.y - th/2 - 10 && y <= t.y + th/2 + 10) return i;
+    // Приблизительная проверка попадания (можно улучшить)
+    let approxWidth = t.lines.reduce((max, line) => Math.max(max, line.length * t.fontSize * 0.6), 0);
+    let approxHeight = t.lines.length * t.fontSize * 1.2;
+    if (dispX >= t.x - approxWidth/2 - 5 && dispX <= t.x + approxWidth/2 + 5 &&
+        dispY >= t.y - approxHeight/2 - 5 && dispY <= t.y + approxHeight/2 + 5) {
+      return i;
+    }
   }
   return -1;
 }
 
-// ========== INPUT EVENTS ==========
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ГЛАЗ ==========
+function isPointInsideEye(dispX, dispY, eyeDisp) {
+  return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 &&
+         Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
+}
+
+function blinkEye(eyeDisp) {
+  eyeDisp.blink = true;
+  lastSentState = '';
+  sendUpdateToESP();
+  setTimeout(() => {
+    eyeDisp.blink = false;
+    lastSentState = '';
+    sendUpdateToESP();
+  }, 200);
+}
+
+// ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
 function getPos(evt) {
   let rect = canvas.getBoundingClientRect();
   let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -1100,60 +1114,83 @@ function getPos(evt) {
   return { x: cx - rect.left, y: cy - rect.top };
 }
 
-function insideEye(px, py, eye) {
-  return px > eye.x - eyeWidth/2 && px < eye.x + eyeWidth/2 &&
-         py > eye.y - eyeHeight/2 && py < eye.y + eyeHeight/2;
-}
-
-function blinkEye(eye) {
-  eye.blink = true; lastSentState = ''; sendUpdateToESP();
-  setTimeout(() => { eye.blink = false; lastSentState = ''; sendUpdateToESP(); }, 200);
-}
-
 function handleStart(evt) {
   evt.preventDefault();
-  let p = getPos(evt);
+  let canvasPos = getPos(evt);
+  let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
+
   if (mode === "manual") {
-    if (insideEye(p.x, p.y, leftEye)) { activeEye = leftEye; activeEyeForSend = 'left'; }
-    else if (insideEye(p.x, p.y, rightEye)) { activeEye = rightEye; activeEyeForSend = 'right'; }
-    else { activeEye = null; activeEyeForSend = null; }
-    if (activeEye) { dragStart = p; dragStarted = false; }
+    if (isPointInsideEye(dispPos.x, dispPos.y, leftEyeDisp)) {
+      activeEyeDisp = leftEyeDisp;
+    } else if (isPointInsideEye(dispPos.x, dispPos.y, rightEyeDisp)) {
+      activeEyeDisp = rightEyeDisp;
+    } else {
+      activeEyeDisp = null;
+    }
+    if (activeEyeDisp) {
+      dragStart = canvasPos; // для определения перетаскивания
+      dragStarted = false;
+    }
   } else if (mode === "draw") {
     isDrawing = true;
-    currentStroke = { points: [p], size: brushSize };
-    activeEyeForSend = null;
+    // Штрих храним в дисплейных координатах
+    currentStroke = { points: [{ x: dispPos.x, y: dispPos.y }], size: brushSize };
+    activeEyeDisp = null;
   } else if (mode === "text") {
     if (tempTextarea) return;
-    let idx = getTextIndexAt(p.x, p.y);
+    let idx = getTextIndexAt(dispPos.x, dispPos.y);
     if (idx !== -1) {
       activeTextIndex = idx;
-      textDragOffset = { x: p.x - textObjects[idx].x, y: p.y - textObjects[idx].y };
-    } else { showTextInput(); }
-    activeEyeForSend = null;
+      // Смещение также храним в дисплейных координатах для удобства
+      textDragOffset = { x: dispPos.x - textObjects[idx].x, y: dispPos.y - textObjects[idx].y };
+    } else {
+      showTextInput();
+    }
+    activeEyeDisp = null;
   }
 }
 
 function handleMove(evt) {
   evt.preventDefault();
-  let p = getPos(evt);
-  if (mode === "manual" && activeEye) {
-    let dx = p.x - dragStart.x, dy = p.y - dragStart.y;
-    if (!dragStarted && Math.sqrt(dx*dx+dy*dy) >= dragThreshold) dragStarted = true;
+  let canvasPos = getPos(evt);
+  let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
+
+  if (mode === "manual" && activeEyeDisp) {
+    // Проверяем, превышен ли порог перетаскивания (в canvas-пикселях)
+    let dx = canvasPos.x - dragStart.x;
+    let dy = canvasPos.y - dragStart.y;
+    if (!dragStarted && Math.sqrt(dx*dx + dy*dy) >= dragThreshold) {
+      dragStarted = true;
+    }
+
     if (dragStarted) {
-      let nx = Math.max(eyeWidth/2, Math.min((canvas.clientWidth||canvas.width) - eyeWidth/2, p.x));
-      let ny = Math.max(eyeHeight/2, Math.min((canvas.clientHeight||canvas.height) - eyeHeight/2, p.y));
-      if (activeEye === leftEye) nx = Math.min(nx, rightEye.x - eyeWidth - minGap);
-      if (activeEye === rightEye) nx = Math.max(nx, leftEye.x + eyeWidth + minGap);
-      activeEye.x = nx; activeEye.y = ny;
+      // Ограничения по краям дисплея (с учётом половины размера глаза)
+      let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W - EYE_WIDTH_DISP/2, dispPos.x));
+      let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H - EYE_HEIGHT_DISP/2, dispPos.y));
+
+      // Ограничение расстояния между глазами
+      if (activeEyeDisp === leftEyeDisp) {
+        nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
+      } else if (activeEyeDisp === rightEyeDisp) {
+        nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
+      }
+
+      activeEyeDisp.x = nx;
+      activeEyeDisp.y = ny;
       debouncedSendUpdate();
     }
   } else if (mode === "draw" && isDrawing) {
-    if (currentStroke) currentStroke.points.push(p);
+    if (currentStroke) {
+      // Добавляем точку в дисплейных координатах
+      currentStroke.points.push({ x: dispPos.x, y: dispPos.y });
+    }
     debouncedSendUpdate();
   } else if (mode === "text" && activeTextIndex !== -1) {
     let t = textObjects[activeTextIndex];
-    t.x = Math.max(10, Math.min((canvas.clientWidth||canvas.width)-10, p.x - textDragOffset.x));
-    t.y = Math.max(10, Math.min((canvas.clientHeight||canvas.height)-10, p.y - textDragOffset.y));
+    let newX = Math.max(0, Math.min(DISPLAY_W, dispPos.x - textDragOffset.x));
+    let newY = Math.max(0, Math.min(DISPLAY_H, dispPos.y - textDragOffset.y));
+    t.x = newX;
+    t.y = newY;
     debouncedSendUpdate();
   }
 }
@@ -1161,16 +1198,23 @@ function handleMove(evt) {
 function handleEnd(evt) {
   evt.preventDefault();
   if (mode === "manual") {
-    if (activeEye && !dragStarted) blinkEye(activeEye);
-    activeEye = null; dragStarted = false; activeEyeForSend = null;
+    if (activeEyeDisp && !dragStarted) {
+      blinkEye(activeEyeDisp);
+    }
+    activeEyeDisp = null;
+    dragStarted = false;
   } else if (mode === "draw" && isDrawing) {
-    if (currentStroke && currentStroke.points.length > 1) strokes.push(currentStroke);
+    if (currentStroke && currentStroke.points.length > 1) {
+      strokes.push(currentStroke);
+    }
     if (strokes.length > 50) strokes.shift();
-    currentStroke = null; isDrawing = false; activeEyeForSend = null;
+    currentStroke = null;
+    isDrawing = false;
   } else if (mode === "text") {
-    activeTextIndex = -1; activeEyeForSend = null;
+    activeTextIndex = -1;
   }
-  lastSentState = ''; sendUpdateToESP();
+  lastSentState = '';
+  sendUpdateToESP();
 }
 
 canvas.addEventListener('mousedown', handleStart);
@@ -1182,54 +1226,84 @@ canvas.addEventListener('touchmove', handleMove, { passive: false });
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
-// ========== DRAW LOOP ==========
-function draw() {
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
-  if (mode === "auto") {
-    ctx.fillStyle = 'rgba(0,255,179,0.15)';
-    ctx.font = '700 13px Space Mono, monospace';
-    ctx.textAlign = 'center'; ctx.letterSpacing = '0.15em';
-    ctx.fillText('AUTO MODE', w/2, h/2);
-  } else if (mode === "manual") {
-    drawEye(leftEye); drawEye(rightEye);
-  } else if (mode === "draw") {
-    ctx.strokeStyle = '#fff'; ctx.lineCap = 'round';
-    [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
-      if (!s.points || s.points.length < 2) return;
-      ctx.lineWidth = s.size || 1;
-      ctx.beginPath(); ctx.moveTo(s.points[0].x, s.points[0].y);
-      for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
-      ctx.stroke();
-    });
-  } else if (mode === "text") {
-    textObjects.forEach(t => drawTextBlock(t));
-  }
-  requestAnimationFrame(draw);
-}
+// ========== ОТРИСОВКА ==========
+function drawEye(dispEye) {
+  let pos = displayToCanvas(dispEye.x, dispEye.y);
+  let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
+  let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
+  let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight; // пропорционально высоте
 
-function drawEye(e) {
   ctx.save();
-  if (e.blink) {
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(e.x - eyeWidth/2, e.y); ctx.lineTo(e.x + eyeWidth/2, e.y); ctx.stroke();
+  if (dispEye.blink) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(pos.x - w/2, pos.y);
+    ctx.lineTo(pos.x + w/2, pos.y);
+    ctx.stroke();
   } else {
-    ctx.fillStyle = '#fff'; ctx.beginPath();
-    roundRect(ctx, e.x - eyeWidth/2, e.y - eyeHeight/2, eyeWidth, eyeHeight, radius);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r);
     ctx.fill();
   }
   ctx.restore();
 }
 
 function roundRect(ctx, x, y, w, h, r) {
-  if (w < 2*r) r = w/2; if (h < 2*r) r = h/2;
-  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
+  if (w < 2*r) r = w/2;
+  if (h < 2*r) r = h/2;
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
 }
 
-// ========== CHART ==========
+function draw() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  if (mode === "auto") {
+    ctx.fillStyle = 'rgba(0,255,179,0.15)';
+    ctx.font = '700 13px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = '0.15em';
+    ctx.fillText('AUTO MODE', w/2, h/2);
+  } else if (mode === "manual") {
+    drawEye(leftEyeDisp);
+    drawEye(rightEyeDisp);
+  } else if (mode === "draw") {
+    ctx.strokeStyle = '#fff';
+    ctx.lineCap = 'round';
+    // Рисуем все штрихи, преобразуя точки в canvas-координаты
+    [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
+      if (!s.points || s.points.length < 2) return;
+      ctx.lineWidth = s.size * (canvas.clientWidth / DISPLAY_W); // масштабируем толщину
+      ctx.beginPath();
+      let first = displayToCanvas(s.points[0].x, s.points[0].y);
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < s.points.length; i++) {
+        let p = displayToCanvas(s.points[i].x, s.points[i].y);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    });
+  } else if (mode === "text") {
+    textObjects.forEach(t => drawTextBlock(t));
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// ========== ГРАФИКИ (без изменений) ==========
 function initChart() {
   const chartCtx = document.getElementById('sensorChart').getContext('2d');
   chart = new Chart(chartCtx, {
@@ -1280,7 +1354,7 @@ function toggleGraph(btn) {
 
 document.getElementById('paramSelect').addEventListener('change', updateChart);
 
-// ========== CONNECTION ==========
+// ========== СОЕДИНЕНИЕ ==========
 function setConnected(connected) {
   isConnected = connected;
   const badge = document.getElementById('connectionBadge');
@@ -1289,13 +1363,13 @@ function setConnected(connected) {
   label.textContent = connected ? 'ONLINE' : 'OFFLINE';
 }
 
-// ========== DATA FETCH ==========
+// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP (без изменений) ==========
 function updateData() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data')
     .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
-      // Buttons
+      // Кнопки
       const lb = document.getElementById('leftBtn');
       const rb = document.getElementById('rightBtn');
       lb.textContent = data.left ? 'PRESSED' : 'RELEASED';
@@ -1345,7 +1419,6 @@ function updateData() {
       document.getElementById('espRSSI').textContent = (data.rssi !== undefined ? data.rssi : 'N/A') + ' dBm';
       document.getElementById('espVersion').textContent = data.version || '1.5';
 
-      // Sensor status table in ESP tab
       const statusHTML = ok => ok
         ? '<span class="status-ok">OK</span>'
         : '<span class="status-err">NOT DETECTED</span>';
@@ -1356,7 +1429,6 @@ function updateData() {
 
       document.getElementById('timestamp').textContent = 'Last updated: ' + (data.last_update || '?') + ' ms';
 
-      // History
       const push = (arr, val) => { arr.push(val); if (arr.length > MAX_HISTORY) arr.shift(); };
       if (bhOk && data.lux !== undefined) push(historyLux, data.lux);
       if (bmpOk && data.bmp_temp !== undefined) push(historyBmpTemp, data.bmp_temp);
@@ -1375,15 +1447,15 @@ function formatUptime(s) {
   return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`;
 }
 
-// ========== INIT ==========
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 updateModeUI();
 setInterval(updateData, 1000);
 window.onload = () => {
   resizeCanvas();
   updateData();
-  pillPos(); // устанавливаем положение пилла при загрузке
+  pillPos();
 };
-window.addEventListener('resize', pillPos); // обновляем при изменении размера окна
+window.addEventListener('resize', pillPos);
 draw();
 </script>
 </body>
