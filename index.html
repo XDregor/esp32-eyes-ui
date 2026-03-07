@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP Eyes Control (fixed)</title>
+<title>ESP Eyes Control (синхронизация)</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  /* ----- Стили без изменений (как в исходном коде) ----- */
+  /* ----- Стили (полностью идентичны предыдущей версии) ----- */
   :root {
     --bg: #0a0a0f;
     --surface: #10101a;
@@ -647,7 +647,6 @@
 
   <!-- SENSORS TAB (без изменений) -->
   <div id="sensors" class="tab">
-    <!-- ... содержимое как в исходном коде ... -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Buttons</span>
@@ -785,61 +784,45 @@
 
 <script>
 // ========== КОНФИГУРАЦИЯ ==========
-const ESP_IP = 'http://192.168.0.223';
+const ESP_IP = 'http://192.168.0.223'; // замените на ваш IP
 
-// ========== РАЗМЕРЫ ДИСПЛЕЯ (ЛОГИЧЕСКОЕ ПРОСТРАНСТВО) ==========
+// ========== РАЗМЕРЫ ДИСПЛЕЯ ==========
 const DISPLAY_W = 128;
 const DISPLAY_H = 64;
 
-// ========== ПАРАМЕТРЫ ГЛАЗ (В ПИКСЕЛЯХ ДИСПЛЕЯ) ==========
+// ========== ПАРАМЕТРЫ ГЛАЗ ==========
 const EYE_WIDTH_DISP = 20;
 const EYE_HEIGHT_DISP = 28;
-const EYE_RADIUS_DISP = 4;       // скругление
-const MIN_GAP_DISP = 5;           // минимальное расстояние между глазами
+const EYE_RADIUS_DISP = 4;
+const MIN_GAP_DISP = 5;
 
 // ========== СОСТОЯНИЕ ==========
 let mode = "auto";
-
-// Глаза теперь хранятся в дисплейных координатах
 let leftEyeDisp = { x: 40, y: 32, blink: false };
 let rightEyeDisp = { x: 88, y: 32, blink: false };
-
-let activeEyeDisp = null;          // ссылка на перемещаемый глаз (leftEyeDisp или rightEyeDisp)
-
-let strokes = [];                  // массив штрихов, точки в дисплейных координатах
-let currentStroke = null;          // текущий штрих (в процессе рисования)
-let brushSize = 2;                 // размер кисти в дисплейных пикселях (логический)
-
+let activeEyeDisp = null;
+let strokes = [];
+let currentStroke = null;
+let brushSize = 2;
 let isDrawing = false;
-
-let textObjects = [];              // массив текстовых блоков, координаты в дисплейных пикселях
+let textObjects = [];
 let activeTextIndex = -1;
 let textDragOffset = { x: 0, y: 0 };
-
-// Параметры текста
 const MAX_TEXT_LENGTH = 244;
 const MAX_CHARS_PER_LINE = 30;
-const TEXT_FONT_SIZE_DISP = 8;     // размер шрифта в дисплейных пикселях (будет масштабироваться)
-
+const TEXT_FONT_SIZE_DISP = 8;
 let tempTextarea = null;
 let charCounter = null;
-
-// Для определения начала перетаскивания
 let dragStart = { x: 0, y: 0 };
-const dragThreshold = 5;            // порог в canvas-пикселях (не в дисплейных)
+const dragThreshold = 5;
 let dragStarted = false;
-
 let lastSentState = '';
 let updateTimeout;
 let reconnectTimer = null;
 let isConnected = false;
-
-// Графики (без изменений)
 let chart;
 let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
 const MAX_HISTORY = 20;
-
-// Текущая вкладка
 let curTab = 0;
 
 // ========== CANVAS ==========
@@ -848,8 +831,8 @@ const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || parseInt(getComputedStyle(canvas).width) || 400;
-  const cssH = canvas.clientHeight || parseInt(getComputedStyle(canvas).height) || 200;
+  const cssW = canvas.clientWidth || 400;
+  const cssH = canvas.clientHeight || 200;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = cssW + 'px';
@@ -859,7 +842,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ========== МАСШТАБИРОВАНИЕ КООРДИНАТ ==========
+// ========== ПРЕОБРАЗОВАНИЕ КООРДИНАТ ==========
 function canvasToDisplay(canvasX, canvasY) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
@@ -878,7 +861,7 @@ function displayToCanvas(dispX, dispY) {
   };
 }
 
-// ========== НАВИГАЦИЯ (без изменений) ==========
+// ========== НАВИГАЦИЯ ==========
 function pillPos() {
   const nav = document.getElementById('navTrack');
   const activeBtn = nav.querySelector('.nav-btn.active');
@@ -902,11 +885,9 @@ function switchTab(index, btn) {
   if (index === 0) setTimeout(resizeCanvas, 50);
 }
 
-// ========== ОТПРАВКА НА ESP ==========
+// ========== ОТПРАВКА ==========
 function sendUpdateToESP() {
   if (!ESP_IP) return;
-
-  // Состояние уже в дисплейных координатах – отправляем как есть
   let state = {
     mode,
     leftBlink: leftEyeDisp.blink,
@@ -930,23 +911,21 @@ function sendUpdateToESP() {
     isTyping: (tempTextarea !== null),
     activeEye: activeEyeDisp === leftEyeDisp ? 'left' : (activeEyeDisp === rightEyeDisp ? 'right' : null)
   };
-
   const stateStr = JSON.stringify(state);
   if (stateStr === lastSentState) return;
   lastSentState = stateStr;
-
   fetch(ESP_IP + '/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: stateStr
   })
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
+    .then(r => { if (!r.ok) throw new Error(); })
     .catch(() => setConnected(false));
 }
 
 function debouncedSendUpdate() {
   if (updateTimeout) clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(sendUpdateToESP, 80); // уменьшили до 80 мс
+  updateTimeout = setTimeout(sendUpdateToESP, 80);
 }
 
 // ========== РЕЖИМЫ ==========
@@ -996,7 +975,7 @@ function clearContent() {
   sendUpdateToESP();
 }
 
-// ========== ТЕКСТ (переделано для дисплейных координат) ==========
+// ========== ТЕКСТ ==========
 function wrapText(text, maxLen) {
   const words = text.split(/(\s+)/);
   const lines = [];
@@ -1016,9 +995,8 @@ function wrapText(text, maxLen) {
 }
 
 function drawTextBlock(t) {
-  // Масштабируем позицию и размер шрифта
   let pos = displayToCanvas(t.x, t.y);
-  let fontSize = t.fontSize * (canvas.clientHeight / DISPLAY_H); // пропорционально высоте
+  let fontSize = t.fontSize * (canvas.clientHeight / DISPLAY_H);
   ctx.save();
   ctx.fillStyle = '#fff';
   ctx.font = `${fontSize}px sans-serif`;
@@ -1064,7 +1042,6 @@ function finishTextInput() {
   removeTempInput();
   if (text.trim()) {
     if (text.length > MAX_TEXT_LENGTH) text = text.substring(0, MAX_TEXT_LENGTH);
-    // Создаём текст в центре дисплея
     textObjects.push({
       lines: wrapText(text, MAX_CHARS_PER_LINE),
       x: DISPLAY_W / 2,
@@ -1078,7 +1055,6 @@ function finishTextInput() {
 function getTextIndexAt(dispX, dispY) {
   for (let i = textObjects.length - 1; i >= 0; i--) {
     let t = textObjects[i];
-    // Приблизительная проверка попадания (можно улучшить)
     let approxWidth = t.lines.reduce((max, line) => Math.max(max, line.length * t.fontSize * 0.6), 0);
     let approxHeight = t.lines.length * t.fontSize * 1.2;
     if (dispX >= t.x - approxWidth/2 - 5 && dispX <= t.x + approxWidth/2 + 5 &&
@@ -1089,7 +1065,7 @@ function getTextIndexAt(dispX, dispY) {
   return -1;
 }
 
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ГЛАЗ ==========
+// ========== ГЛАЗА ==========
 function isPointInsideEye(dispX, dispY, eyeDisp) {
   return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 &&
          Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
@@ -1106,7 +1082,7 @@ function blinkEye(eyeDisp) {
   }, 200);
 }
 
-// ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
+// ========== СОБЫТИЯ ==========
 function getPos(evt) {
   let rect = canvas.getBoundingClientRect();
   let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -1118,7 +1094,6 @@ function handleStart(evt) {
   evt.preventDefault();
   let canvasPos = getPos(evt);
   let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
-
   if (mode === "manual") {
     if (isPointInsideEye(dispPos.x, dispPos.y, leftEyeDisp)) {
       activeEyeDisp = leftEyeDisp;
@@ -1128,12 +1103,11 @@ function handleStart(evt) {
       activeEyeDisp = null;
     }
     if (activeEyeDisp) {
-      dragStart = canvasPos; // для определения перетаскивания
+      dragStart = canvasPos;
       dragStarted = false;
     }
   } else if (mode === "draw") {
     isDrawing = true;
-    // Штрих храним в дисплейных координатах
     currentStroke = { points: [{ x: dispPos.x, y: dispPos.y }], size: brushSize };
     activeEyeDisp = null;
   } else if (mode === "text") {
@@ -1141,7 +1115,6 @@ function handleStart(evt) {
     let idx = getTextIndexAt(dispPos.x, dispPos.y);
     if (idx !== -1) {
       activeTextIndex = idx;
-      // Смещение также храним в дисплейных координатах для удобства
       textDragOffset = { x: dispPos.x - textObjects[idx].x, y: dispPos.y - textObjects[idx].y };
     } else {
       showTextInput();
@@ -1154,34 +1127,26 @@ function handleMove(evt) {
   evt.preventDefault();
   let canvasPos = getPos(evt);
   let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
-
   if (mode === "manual" && activeEyeDisp) {
-    // Проверяем, превышен ли порог перетаскивания (в canvas-пикселях)
     let dx = canvasPos.x - dragStart.x;
     let dy = canvasPos.y - dragStart.y;
     if (!dragStarted && Math.sqrt(dx*dx + dy*dy) >= dragThreshold) {
       dragStarted = true;
     }
-
     if (dragStarted) {
-      // Ограничения по краям дисплея (с учётом половины размера глаза)
       let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W - EYE_WIDTH_DISP/2, dispPos.x));
       let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H - EYE_HEIGHT_DISP/2, dispPos.y));
-
-      // Ограничение расстояния между глазами
       if (activeEyeDisp === leftEyeDisp) {
         nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
       } else if (activeEyeDisp === rightEyeDisp) {
         nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
       }
-
       activeEyeDisp.x = nx;
       activeEyeDisp.y = ny;
       debouncedSendUpdate();
     }
   } else if (mode === "draw" && isDrawing) {
     if (currentStroke) {
-      // Добавляем точку в дисплейных координатах
       currentStroke.points.push({ x: dispPos.x, y: dispPos.y });
     }
     debouncedSendUpdate();
@@ -1231,8 +1196,7 @@ function drawEye(dispEye) {
   let pos = displayToCanvas(dispEye.x, dispEye.y);
   let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
   let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
-  let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight; // пропорционально высоте
-
+  let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
   ctx.save();
   if (dispEye.blink) {
     ctx.strokeStyle = '#fff';
@@ -1270,7 +1234,6 @@ function draw() {
   const h = canvas.clientHeight;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
-
   if (mode === "auto") {
     ctx.fillStyle = 'rgba(0,255,179,0.15)';
     ctx.font = '700 13px Space Mono, monospace';
@@ -1283,10 +1246,9 @@ function draw() {
   } else if (mode === "draw") {
     ctx.strokeStyle = '#fff';
     ctx.lineCap = 'round';
-    // Рисуем все штрихи, преобразуя точки в canvas-координаты
     [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
       if (!s.points || s.points.length < 2) return;
-      ctx.lineWidth = s.size * (canvas.clientWidth / DISPLAY_W); // масштабируем толщину
+      ctx.lineWidth = s.size * (canvas.clientWidth / DISPLAY_W);
       ctx.beginPath();
       let first = displayToCanvas(s.points[0].x, s.points[0].y);
       ctx.moveTo(first.x, first.y);
@@ -1299,11 +1261,10 @@ function draw() {
   } else if (mode === "text") {
     textObjects.forEach(t => drawTextBlock(t));
   }
-
   requestAnimationFrame(draw);
 }
 
-// ========== ГРАФИКИ (без изменений) ==========
+// ========== ГРАФИКИ ==========
 function initChart() {
   const chartCtx = document.getElementById('sensorChart').getContext('2d');
   chart = new Chart(chartCtx, {
@@ -1363,12 +1324,25 @@ function setConnected(connected) {
   label.textContent = connected ? 'ONLINE' : 'OFFLINE';
 }
 
-// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP (без изменений) ==========
+// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP ==========
 function updateData() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data')
     .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
+      // ===== СИНХРОНИЗАЦИЯ КООРДИНАТ ГЛАЗ =====
+      // Обновляем координаты только в ручном режиме и когда не идёт перетаскивание
+      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
+        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
+          leftEyeDisp.x = data.left_eye_x;
+          leftEyeDisp.y = data.left_eye_y;
+        }
+        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
+          rightEyeDisp.x = data.right_eye_x;
+          rightEyeDisp.y = data.right_eye_y;
+        }
+      }
+
       // Кнопки
       const lb = document.getElementById('leftBtn');
       const rb = document.getElementById('rightBtn');
