@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP Eyes Control (полная синхронизация)</title>
+<title>ESP Eyes Control (синхронизация + activeEye)</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  /* ----- Стили полностью как в предыдущих версиях ----- */
+  /* ----- Стили (полностью идентичны предыдущей версии) ----- */
   :root {
     --bg: #0a0a0f;
     --surface: #10101a;
@@ -786,15 +786,15 @@
 // ========== КОНФИГУРАЦИЯ ==========
 const ESP_IP = 'http://192.168.0.223'; // замените на ваш IP
 
-// ========== РАЗМЕРЫ ДИСПЛЕЯ (неизменны) ==========
+// ========== РАЗМЕРЫ ДИСПЛЕЯ ==========
 const DISPLAY_W = 128;
 const DISPLAY_H = 64;
 
-// ========== ПАРАМЕТРЫ ГЛАЗ (ИНИЦИАЛИЗИРУЮТСЯ ИЗ ESP, ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ СОВПАДАЮТ С ПРОШИВКОЙ) ==========
-let eyeWidthDisp = 30;        // eyeWidth из ESP
-let eyeHeightDisp = 45;       // eyeHeight из ESP
-let eyeRadiusDisp = 6;        // eyeRadius из ESP
-let minGapDisp = 5;           // eye_min_gap из ESP
+// ========== ПАРАМЕТРЫ ГЛАЗ ==========
+const EYE_WIDTH_DISP = 20;
+const EYE_HEIGHT_DISP = 28;
+const EYE_RADIUS_DISP = 4;
+const MIN_GAP_DISP = 5;
 
 // ========== СОСТОЯНИЕ ==========
 let mode = "auto";
@@ -885,7 +885,28 @@ function switchTab(index, btn) {
   if (index === 0) setTimeout(resizeCanvas, 50);
 }
 
-// ========== ОТПРАВКА НА ESP (только активный глаз) ==========
+// ========== ЗАПРОС АКТУАЛЬНЫХ КООРДИНАТ С ESP ==========
+function requestEyeSync() {
+  if (!ESP_IP) return;
+  fetch(ESP_IP + '/data')
+    .then(r => r.json())
+    .then(data => {
+      // Синхронизируем только если не двигаем глаза
+      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
+        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
+          leftEyeDisp.x = data.left_eye_x;
+          leftEyeDisp.y = data.left_eye_y;
+        }
+        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
+          rightEyeDisp.x = data.right_eye_x;
+          rightEyeDisp.y = data.right_eye_y;
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+// ========== ОТПРАВКА НА ESP ==========
 function sendUpdateToESP() {
   if (!ESP_IP) return;
   let state = {
@@ -1084,8 +1105,8 @@ function getTextIndexAt(dispX, dispY) {
 
 // ========== ГЛАЗА ==========
 function isPointInsideEye(dispX, dispY, eyeDisp) {
-  return Math.abs(dispX - eyeDisp.x) <= eyeWidthDisp/2 &&
-         Math.abs(dispY - eyeDisp.y) <= eyeHeightDisp/2;
+  return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 &&
+         Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
 }
 
 function blinkEye(eyeDisp) {
@@ -1151,12 +1172,12 @@ function handleMove(evt) {
       dragStarted = true;
     }
     if (dragStarted) {
-      let nx = Math.max(eyeWidthDisp/2, Math.min(DISPLAY_W - eyeWidthDisp/2, dispPos.x));
-      let ny = Math.max(eyeHeightDisp/2, Math.min(DISPLAY_H - eyeHeightDisp/2, dispPos.y));
+      let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W - EYE_WIDTH_DISP/2, dispPos.x));
+      let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H - EYE_HEIGHT_DISP/2, dispPos.y));
       if (activeEyeDisp === leftEyeDisp) {
-        nx = Math.min(nx, rightEyeDisp.x - eyeWidthDisp - minGapDisp);
+        nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
       } else if (activeEyeDisp === rightEyeDisp) {
-        nx = Math.max(nx, leftEyeDisp.x + eyeWidthDisp + minGapDisp);
+        nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
       }
       activeEyeDisp.x = nx;
       activeEyeDisp.y = ny;
@@ -1210,33 +1231,12 @@ canvas.addEventListener('touchmove', handleMove, { passive: false });
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
-// ========== ЗАПРОС СИНХРОНИЗАЦИИ С ESP ==========
-function requestEyeSync() {
-  if (!ESP_IP) return;
-  fetch(ESP_IP + '/data')
-    .then(r => r.json())
-    .then(data => {
-      // Синхронизируем координаты только если не двигаем глаза
-      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
-        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
-          leftEyeDisp.x = data.left_eye_x;
-          leftEyeDisp.y = data.left_eye_y;
-        }
-        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
-          rightEyeDisp.x = data.right_eye_x;
-          rightEyeDisp.y = data.right_eye_y;
-        }
-      }
-    })
-    .catch(() => {});
-}
-
 // ========== ОТРИСОВКА ==========
 function drawEye(dispEye) {
   let pos = displayToCanvas(dispEye.x, dispEye.y);
-  let w = (eyeWidthDisp / DISPLAY_W) * canvas.clientWidth;
-  let h = (eyeHeightDisp / DISPLAY_H) * canvas.clientHeight;
-  let r = (eyeRadiusDisp / DISPLAY_H) * canvas.clientHeight;
+  let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
+  let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
+  let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
   ctx.save();
   if (dispEye.blink) {
     ctx.strokeStyle = '#fff';
@@ -1364,25 +1364,22 @@ function setConnected(connected) {
   label.textContent = connected ? 'ONLINE' : 'OFFLINE';
 }
 
-// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP (ОСНОВНОЙ ЦИКЛ) ==========
+// ========== ПОЛУЧЕНИЕ ДАННЫХ С ESP ==========
 function updateData() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data')
     .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
-      // ===== СИНХРОНИЗАЦИЯ ГЕОМЕТРИИ ГЛАЗ =====
-      if (typeof data.eye_width === "number") eyeWidthDisp = data.eye_width;
-      if (typeof data.eye_height === "number") eyeHeightDisp = data.eye_height;
-      if (typeof data.eye_radius === "number") eyeRadiusDisp = data.eye_radius;
-      if (typeof data.eye_min_gap === "number") minGapDisp = data.eye_min_gap;
-
-      // ===== СИНХРОНИЗАЦИЯ КООРДИНАТ ГЛАЗ (ТОЛЬКО КОГДА НЕ ДВИГАЕМ) =====
-      const isDraggingEye = (mode === "manual" && activeEyeDisp !== null && dragStarted);
-      if (!isDraggingEye) {
-        if (typeof data.left_eye_x === "number") leftEyeDisp.x = data.left_eye_x;
-        if (typeof data.left_eye_y === "number") leftEyeDisp.y = data.left_eye_y;
-        if (typeof data.right_eye_x === "number") rightEyeDisp.x = data.right_eye_x;
-        if (typeof data.right_eye_y === "number") rightEyeDisp.y = data.right_eye_y;
+      // Синхронизация координат глаз (только если не двигаем)
+      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
+        if (typeof data.left_eye_x === "number" && typeof data.left_eye_y === "number") {
+          leftEyeDisp.x = data.left_eye_x;
+          leftEyeDisp.y = data.left_eye_y;
+        }
+        if (typeof data.right_eye_x === "number" && typeof data.right_eye_y === "number") {
+          rightEyeDisp.x = data.right_eye_x;
+          rightEyeDisp.y = data.right_eye_y;
+        }
       }
 
       // Кнопки
