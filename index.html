@@ -241,6 +241,19 @@
       </div>
     </div>
 
+    <!-- MANUAL EYE STYLES — only visible in manual mode -->
+    <div id="panelPresetManual" class="presets-section" style="display:none;">
+      <div class="presets-section-header">
+        <span class="presets-section-title">👁️ СТИЛЬ ГЛАЗ</span>
+      </div>
+      <div class="mode-grid">
+        <button class="mode-btn active manual-style-btn" data-style="default" onclick="setManualEyeStyle('default')"><span class="mode-icon">😐</span>DEFAULT</button>
+        <button class="mode-btn manual-style-btn" data-style="angry" onclick="setManualEyeStyle('angry')"><span class="mode-icon">😠</span>ANGRY</button>
+        <button class="mode-btn manual-style-btn" data-style="happy" onclick="setManualEyeStyle('happy')"><span class="mode-icon">😊</span>HAPPY</button>
+        <button class="mode-btn manual-style-btn" data-style="sad" onclick="setManualEyeStyle('sad')"><span class="mode-icon">😢</span>SAD</button>
+      </div>
+    </div>
+
     <!-- DRAW PRESETS — only visible in draw mode -->
     <div id="panelPresetDraw" class="presets-section" style="display:none;">
       <div class="presets-section-header">
@@ -390,6 +403,7 @@ const MAX_HISTORY = 20;
 let curTab = 0;
 let selectedDrawPreset = -1;
 let currentLang = 'ru';
+let manualEyeStyle = 'default';
 
 // ========== PRESET DATA ==========
 
@@ -556,6 +570,20 @@ function switchTab(index, btn) {
   if (index === 0) setTimeout(resizeCanvas, 50);
 }
 
+function updateManualStyleUI() {
+  document.querySelectorAll('.manual-style-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.style === manualEyeStyle);
+  });
+}
+
+function setManualEyeStyle(style) {
+  if (!['default', 'angry', 'happy', 'sad'].includes(style)) return;
+  manualEyeStyle = style;
+  updateManualStyleUI();
+  lastSentState = '';
+  sendUpdateToESP();
+}
+
 function switchLang(lang) {
   currentLang = lang;
   document.querySelectorAll('.lang-tab-btn').forEach((b,i) => {
@@ -674,7 +702,7 @@ function requestEyeSync() {
 function sendUpdateToESP() {
   if (!ESP_IP) return;
   let state = {
-    mode, leftBlink: leftEyeDisp.blink, rightBlink: rightEyeDisp.blink,
+    mode, manualEyeStyle, leftBlink: leftEyeDisp.blink, rightBlink: rightEyeDisp.blink,
     strokes: strokes.slice(-50).map(s => ({ points: s.points.map(p => [p.x, p.y]), size: s.size })),
     currentStroke: currentStroke ? { points: currentStroke.points.map(p => [p.x, p.y]), size: currentStroke.size } : {},
     textObjects: textObjects.map(t => ({ lines: t.lines, x: t.x, y: t.y, fontSize: t.fontSize })),
@@ -713,6 +741,7 @@ function setMode(newMode) {
     toolbar.style.display = 'none';
   }
   // Show/hide preset panels based on mode
+  document.getElementById('panelPresetManual').style.display = (mode === 'manual') ? 'block' : 'none';
   document.getElementById('panelPresetDraw').style.display = (mode === 'draw') ? 'block' : 'none';
   document.getElementById('panelPresetText').style.display = (mode === 'text') ? 'block' : 'none';
   document.getElementById('modeLabel').textContent = newMode.toUpperCase();
@@ -908,17 +937,85 @@ canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
 // ========== ОТРИСОВКА ==========
-function drawEye(dispEye) {
+function drawEye(dispEye, isLeft) {
   let pos = displayToCanvas(dispEye.x, dispEye.y);
   let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
   let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
   let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
+
+  const drawBrow = (centerSideDown) => {
+    const browY = pos.y - h/2 - 6;
+    const tilt = 5;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (centerSideDown) {
+      ctx.moveTo(pos.x - w/2, browY);
+      ctx.lineTo(pos.x + w/2, browY + tilt);
+    } else {
+      ctx.moveTo(pos.x - w/2, browY + tilt);
+      ctx.lineTo(pos.x + w/2, browY);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    if (centerSideDown) {
+      ctx.moveTo(pos.x - w/2, browY + 3);
+      ctx.lineTo(pos.x + w/2, browY + tilt + 3);
+    } else {
+      ctx.moveTo(pos.x - w/2, browY + tilt + 3);
+      ctx.lineTo(pos.x + w/2, browY + 3);
+    }
+    ctx.stroke();
+  };
+
   ctx.save();
+  ctx.strokeStyle = '#fff';
+  ctx.fillStyle = '#fff';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
   if (dispEye.blink) {
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath();
-    ctx.moveTo(pos.x - w/2, pos.y); ctx.lineTo(pos.x + w/2, pos.y); ctx.stroke();
-  } else {
-    ctx.fillStyle = '#fff'; ctx.beginPath(); roundRect(ctx, pos.x-w/2, pos.y-h/2, w, h, r); ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(pos.x - w/2, pos.y);
+    ctx.lineTo(pos.x + w/2, pos.y);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  switch (manualEyeStyle) {
+    case 'angry':
+      ctx.beginPath();
+      roundRect(ctx, pos.x - w/2, pos.y - h/2 + 2, w, h - 4, r);
+      ctx.fill();
+      // angry: inner corner of brow tilts down → left eye: right side down, right eye: left side down
+      drawBrow(isLeft);
+      break;
+    case 'happy':
+      ctx.lineWidth = 3;
+      // upward arc / ^-shape
+      ctx.beginPath();
+      ctx.moveTo(pos.x - w/2, pos.y + 2);
+      ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 2, pos.x + w/2, pos.y + 2);
+      ctx.stroke();
+      // second line for thickness
+      ctx.beginPath();
+      ctx.moveTo(pos.x - w/2 + 2, pos.y + 6);
+      ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 6, pos.x + w/2 - 2, pos.y + 6);
+      ctx.stroke();
+      break;
+    case 'sad':
+      ctx.beginPath();
+      roundRect(ctx, pos.x - w/2, pos.y - h/2 + 4, w, h - 8, r);
+      ctx.fill();
+      // sad: outer corner of brow tilts down → left eye: left side down, right eye: right side down
+      drawBrow(!isLeft);
+      break;
+    default:
+      ctx.beginPath();
+      roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r);
+      ctx.fill();
+      break;
   }
   ctx.restore();
 }
@@ -938,7 +1035,7 @@ function draw() {
     ctx.fillStyle = 'rgba(0,255,179,0.15)'; ctx.font = '700 13px Space Mono, monospace';
     ctx.textAlign = 'center'; ctx.letterSpacing = '0.15em'; ctx.fillText('AUTO MODE', w/2, h/2);
   } else if (mode === "manual") {
-    drawEye(leftEyeDisp); drawEye(rightEyeDisp);
+    drawEye(leftEyeDisp, true); drawEye(rightEyeDisp, false);
   } else if (mode === "draw") {
     ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
@@ -1021,6 +1118,12 @@ function updateData() {
         if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
         if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
       }
+      if (typeof data.manual_eye_style === 'string' &&
+          ['default','angry','happy','sad'].includes(data.manual_eye_style) &&
+          data.manual_eye_style !== manualEyeStyle) {
+        manualEyeStyle = data.manual_eye_style;
+        updateManualStyleUI();
+      }
       const lb = document.getElementById('leftBtn'); const rb = document.getElementById('rightBtn');
       lb.textContent = data.left ? 'PRESSED' : 'RELEASED'; lb.className = 'btn-state-badge ' + (data.left ? 'pressed' : 'released');
       rb.textContent = data.right ? 'PRESSED' : 'RELEASED'; rb.className = 'btn-state-badge ' + (data.right ? 'pressed' : 'released');
@@ -1082,10 +1185,26 @@ function formatUptime(s) {
   return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`;
 }
 
+// ========== MANUAL СТИЛЬ ГЛАЗ ==========
+function updateManualStyleUI() {
+  document.querySelectorAll('.manual-style-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.style === manualEyeStyle);
+  });
+}
+
+function setManualEyeStyle(style) {
+  if (!['default', 'angry', 'happy', 'sad'].includes(style)) return;
+  manualEyeStyle = style;
+  updateManualStyleUI();
+  lastSentState = '';
+  sendUpdateToESP();
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 function init() {
   resizeCanvas();
   updateModeUI();
+  updateManualStyleUI();
   pillPos();
 
   // Render draw presets thumbnails
