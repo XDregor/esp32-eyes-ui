@@ -764,6 +764,32 @@ function showToast(msg, type = 'ok', ms = 2200) {
   }, ms);
 }
 
+// ========== BUILT-IN STATIC PRESETS (always shown, not deletable) ==========
+const DRAW_PRESETS = [
+  { label: 'УЛЫБКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(Math.PI+t)),y:Math.round(38+18*Math.sin(Math.PI+t))}); return p; })() },{ size:3, points:[{x:48,y:24},{x:48,y:24}] },{ size:3, points:[{x:80,y:24},{x:80,y:24}] }] },
+  { label: 'ГРУСТЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(t)),y:Math.round(46-18*Math.sin(t))}); return p; })() },{ size:3, points:[{x:48,y:22},{x:48,y:22}] },{ size:3, points:[{x:80,y:22},{x:80,y:22}] }] },
+  { label: 'УДИВЛЕНИЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:3, points:[{x:50,y:26},{x:50,y:26}] },{ size:3, points:[{x:78,y:26},{x:78,y:26}] },{ size:2, points:[{x:64,y:36},{x:64,y:42}] },{ size:2, points:[{x:64,y:46},{x:64,y:48}] }] },
+  { label: 'ЗЛОСТЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:2, points:[{x:44,y:20},{x:56,y:26}] },{ size:2, points:[{x:84,y:20},{x:72,y:26}] },{ size:3, points:[{x:52,y:30},{x:52,y:30}] },{ size:3, points:[{x:76,y:30},{x:76,y:30}] },{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(46-10*Math.sin(t))}); return p; })() }] },
+  { label: 'UWU', strokes: [{ size:2, points:[{x:44,y:22},{x:52,y:30},{x:44,y:38}] },{ size:2, points:[{x:84,y:22},{x:76,y:30},{x:84,y:38}] },{ size:3, points:[{x:64,y:36},{x:64,y:36}] },{ size:2, points:(()=>{ const p=[]; for(let t=0.3;t<=Math.PI-0.3;t+=0.15) p.push({x:Math.round(64+16*Math.cos(Math.PI+t)),y:Math.round(44+10*Math.sin(Math.PI+t))}); return p; })() }] },
+  { label: 'TwT', strokes: [{ size:2, points:[{x:40,y:20},{x:56,y:32},{x:40,y:32}] },{ size:2, points:[{x:88,y:20},{x:72,y:32},{x:88,y:32}] },{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+20*Math.cos(t)),y:Math.round(46-12*Math.sin(t))}); return p; })() }] },
+  { label: '>_<', strokes: [{ size:2, points:[{x:40,y:20},{x:56,y:32},{x:40,y:44}] },{ size:2, points:[{x:88,y:20},{x:72,y:32},{x:88,y:44}] },{ size:2, points:[{x:48,y:54},{x:80,y:54}] }] },
+  { label: ':3', strokes: [{ size:3, points:[{x:44,y:28},{x:44,y:28}] },{ size:3, points:[{x:84,y:28},{x:84,y:28}] },{ size:2, points:[{x:52,y:40},{x:64,y:36},{x:76,y:40}] },{ size:2, points:[{x:52,y:40},{x:58,y:44},{x:64,y:40}] },{ size:2, points:[{x:76,y:40},{x:70,y:44},{x:64,y:40}] }] },
+  { label: 'WOW', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(50+7*Math.cos(t)),y:Math.round(24+6*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(78+7*Math.cos(t)),y:Math.round(24+6*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(64+7*Math.cos(t)),y:Math.round(44+6*Math.sin(t))}); return p; })() }] },
+  { label: 'КОШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(34+14*Math.sin(t))}); return p; })() },{ size:2, points:[{x:50,y:21},{x:48,y:12},{x:56,y:22}] },{ size:2, points:[{x:78,y:21},{x:80,y:12},{x:72,y:22}] },{ size:3, points:[{x:58,y:32},{x:58,y:32}] },{ size:3, points:[{x:70,y:32},{x:70,y:32}] },{ size:2, points:[{x:56,y:40},{x:64,y:44},{x:72,y:40}] }] },
+  { label: 'МИШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+18*Math.cos(t)),y:Math.round(35+16*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(46+8*Math.cos(t)),y:Math.round(20+8*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(82+8*Math.cos(t)),y:Math.round(20+8*Math.sin(t))}); return p; })() },{ size:3, points:[{x:58,y:33},{x:58,y:33}] },{ size:3, points:[{x:70,y:33},{x:70,y:33}] },{ size:3, points:[{x:64,y:40},{x:64,y:40}] }] },
+  { label: 'СОБАКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+18*Math.cos(t)),y:Math.round(33+15*Math.sin(t))}); return p; })() },{ size:2, points:[{x:46,y:18},{x:40,y:28},{x:48,y:28}] },{ size:2, points:[{x:82,y:18},{x:88,y:28},{x:80,y:28}] },{ size:3, points:[{x:57,y:30},{x:57,y:30}] },{ size:3, points:[{x:71,y:30},{x:71,y:30}] },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(64+8*Math.cos(Math.PI+t)),y:Math.round(42+6*Math.sin(Math.PI+t))}); return p; })() },{ size:2, points:[{x:80,y:44},{x:90,y:38},{x:92,y:44}] }] },
+  { label: 'СЕРДЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.1){ p.push({x:Math.round(64+18*(16*Math.pow(Math.sin(t),3))/16),y:Math.round(32-18*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/16)}); } return p; })() }] },
+  { label: 'ЗВЕЗДА', strokes: [{ size:2, points:(()=>{ const p=[],cx=64,cy=32,r1=22,r2=10,n=5; for(let i=0;i<=n*2;i++){const a=(Math.PI/n)*i-Math.PI/2,r=i%2===0?r1:r2; p.push({x:Math.round(cx+r*Math.cos(a)),y:Math.round(cy+r*Math.sin(a))}); } return p; })() }] },
+  { label: 'МОЛНИЯ', strokes: [{ size:2, points:[{x:72,y:8},{x:56,y:32},{x:70,y:32},{x:54,y:56}] }] },
+  { label: 'СОЛНЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.25) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(32+12*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const rays=[[0,-1],[0.7,-0.7],[1,0],[0.7,0.7],[0,1],[-0.7,0.7],[-1,0],[-0.7,-0.7]]; return rays.flatMap(([dx,dy])=>[{x:Math.round(64+16*dx),y:Math.round(32+16*dy)},{x:Math.round(64+24*dx),y:Math.round(32+24*dy)},{x:Math.round(64+16*dx),y:Math.round(32+16*dy)}]); })() }] },
+];
+
+const TEXT_PRESETS_STATIC = {
+  ru: ['Привет!','Пока!','Спасибо','Пожалуйста','ОК','Ошибка!','Стоп','Вперёд','Ждите...','Загрузка','Готово!','Занят','Не трогай!','Тихо!','Смотри!','Осторожно','Я здесь','Иду...','Устал','Отдыхаю','Голоден','Хочу чай','Нет!','Да!','Помогите','Всё ок','Скучно','Весело!'],
+  uk: ['Привіт!','Бувай!','Дякую','Будь ласка','Добре','Помилка!','Стоп','Вперед','Зачекайте','Завантаження','Готово!','Зайнятий','Не чіпай!','Тихо!','Дивись!','Обережно','Я тут','Іду...','Втомився','Відпочиваю','Голодний','Хочу каву','Ні!','Так!','Допоможіть','Все ок','Нудно','Весело!'],
+  en: ['Hello!','Goodbye!','Thanks','Please','OK','Error!','Stop','Go!','Please wait','Loading...','Done!','Busy','Do not touch!','Be quiet!','Look!','Careful','I\'m here','Coming...','Tired','Resting','Hungry','Need coffee','No!','Yes!','Help me','All good','Bored','Having fun!']
+};
+
 // ========== FIRESTORE CALLBACKS (called from module script) ==========
 window.onDrawPresetsLoaded = function(presets) {
   cloudDrawPresets = presets;
@@ -772,8 +798,8 @@ window.onDrawPresetsLoaded = function(presets) {
 
 window.onDrawPresetsError = function(err) {
   document.getElementById('drawPresetsLoading').style.display = 'none';
-  document.getElementById('drawPresetsEmpty').textContent = 'Ошибка подключения к облаку';
-  document.getElementById('drawPresetsEmpty').style.display = 'block';
+  // Static presets are always shown, just hide the cloud spinner
+  renderDrawPresetsGrid();
 };
 
 window.onTextPresetsLoaded = function(presets) {
@@ -782,43 +808,53 @@ window.onTextPresetsLoaded = function(presets) {
 };
 
 // ========== RENDER DRAW PRESETS GRID ==========
+// Static presets are always first (no delete icon), cloud presets follow (with delete icon)
 function renderDrawPresetsGrid() {
   const grid = document.getElementById('drawPresetsGrid');
   const loading = document.getElementById('drawPresetsLoading');
   const empty = document.getElementById('drawPresetsEmpty');
   grid.innerHTML = '';
   loading.style.display = 'none';
-
-  if (cloudDrawPresets.length === 0) {
-    empty.textContent = 'Нет заготовок. Нарисуй и сохрани!';
-    empty.style.display = 'block';
-    grid.style.display = 'grid';
-    appendAddDrawButton(grid);
-    return;
-  }
-
   empty.style.display = 'none';
   grid.style.display = 'grid';
 
+  // — Static built-in presets (no delete) —
+  DRAW_PRESETS.forEach((preset, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'draw-preset-btn';
+    btn.id = 'dp_static_' + i;
+    btn.onclick = () => applyStaticDrawPreset(preset, i);
+
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 128; thumbCanvas.height = 64;
+    renderStrokesToCanvas(thumbCanvas, preset.strokes || [], '#00ffb3');
+    btn.appendChild(thumbCanvas);
+
+    const label = document.createElement('div');
+    label.className = 'draw-preset-label';
+    label.textContent = preset.label;
+    btn.appendChild(label);
+
+    grid.appendChild(btn);
+  });
+
+  // — Cloud presets (with delete icon) —
   cloudDrawPresets.forEach(preset => {
     const btn = document.createElement('div');
     btn.className = 'draw-preset-btn';
     btn.id = 'dp_' + preset.id;
     btn.onclick = (e) => { if (!e.target.closest('.preset-del-btn')) applyCloudDrawPreset(preset); };
 
-    // Thumbnail canvas
     const thumbCanvas = document.createElement('canvas');
     thumbCanvas.width = 128; thumbCanvas.height = 64;
     renderStrokesToCanvas(thumbCanvas, preset.strokes || [], '#00ffb3');
     btn.appendChild(thumbCanvas);
 
-    // Label
     const label = document.createElement('div');
     label.className = 'draw-preset-label';
     label.textContent = preset.name || 'UNTITLED';
     btn.appendChild(label);
 
-    // Delete button
     const delBtn = document.createElement('button');
     delBtn.className = 'preset-del-btn';
     delBtn.title = 'Удалить';
@@ -830,6 +866,25 @@ function renderDrawPresetsGrid() {
   });
 
   appendAddDrawButton(grid);
+}
+
+// Apply static (built-in) draw preset — loads into canvas but opens editor as "new" (save = create new cloud preset)
+function applyStaticDrawPreset(preset, index) {
+  if (mode !== 'draw') setMode('draw');
+  strokes = JSON.parse(JSON.stringify(preset.strokes));
+  currentStroke = null;
+  selectedDrawPreset = 'static_' + index;
+  document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById('dp_static_' + index);
+  if (el) el.classList.add('selected');
+  // Open editor pre-filled with static data (as new — save will create cloud copy)
+  openDrawEditorNew();
+  editorStrokes = JSON.parse(JSON.stringify(preset.strokes));
+  document.getElementById('drawEditorNameInput').value = preset.label;
+  document.getElementById('editorStatus').textContent = 'BUILT-IN';
+  document.getElementById('editorStatus').className = 'editor-status saved';
+  setTimeout(redrawEditorCanvas, 60);
+  lastSentState = ''; sendUpdateToESP();
 }
 
 function appendAddDrawButton(grid) {
@@ -1163,9 +1218,23 @@ function renderTextPresetsGrids() {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
 
-    const langPresets = cloudTextPresets.filter(p => p.lang === lang);
+    // — Static built-in phrases (no delete icon) —
+    (TEXT_PRESETS_STATIC[lang] || []).forEach((text, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'text-preset-btn';
+      btn.id = `tp_static_${lang}_${i}`;
+      btn.onclick = () => applyStaticTextPreset(text, lang, i);
 
-    langPresets.forEach(preset => {
+      const preview = document.createElement('span');
+      preview.className = 'text-preset-preview';
+      preview.textContent = text;
+      btn.appendChild(preview);
+
+      container.appendChild(btn);
+    });
+
+    // — Cloud phrases (with delete icon) —
+    cloudTextPresets.filter(p => p.lang === lang).forEach(preset => {
       const btn = document.createElement('div');
       btn.className = 'text-preset-btn';
       btn.id = `tp_${preset.id}`;
@@ -1186,7 +1255,7 @@ function renderTextPresetsGrids() {
       container.appendChild(btn);
     });
 
-    // Add (+) button at end
+    // — Add (+) button at end —
     const addBtn = document.createElement('div');
     addBtn.className = 'text-preset-add';
     addBtn.id = `textAdd_${lang}`;
@@ -1198,6 +1267,17 @@ function renderTextPresetsGrids() {
     `;
     container.appendChild(addBtn);
   });
+}
+
+// Apply static (built-in) text preset
+function applyStaticTextPreset(text, lang, index) {
+  if (mode !== 'text') setMode('text');
+  removeTempInput();
+  textObjects = [{ lines: wrapText(text, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP }];
+  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById(`tp_static_${lang}_${index}`);
+  if (el) el.classList.add('selected');
+  lastSentState = ''; sendUpdateToESP();
 }
 
 // ========== ADD TEXT PRESET INLINE ==========
