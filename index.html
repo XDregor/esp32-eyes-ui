@@ -6,6 +6,7 @@
 <title>ESP Eyes Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -110,7 +111,6 @@
   .presets-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
   .presets-section-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 
-  /* Draw presets */
   .draw-presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .draw-preset-btn {
     background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -124,7 +124,6 @@
   .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .draw-preset-btn.selected .draw-preset-label { color: var(--accent); }
 
-  /* Text presets */
   .text-presets-lang-tabs { display: flex; gap: 4px; }
   .lang-tab-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 10px; font-weight: 700; cursor: pointer; outline: none; transition: all 0.15s; }
   .lang-tab-btn.active { background: var(--accent-dim); border-color: rgba(0,255,179,0.35); color: var(--accent); }
@@ -155,9 +154,14 @@
   .status-err { color: var(--red); font-weight: 700; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; }
   .no-data { font-size: 13px; color: var(--red); font-family: var(--mono); padding: 10px 0; display: none; }
 
-  .graph-toggle-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 40px; padding: 9px 20px; color: var(--text-muted); font-size: 13px; font-family: var(--sans); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 7px; margin: 4px auto 0; }
+  .graph-toggle-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 40px;
+    padding: 9px 20px; color: var(--text-muted); font-size: 13px; font-family: var(--sans);
+    cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 7px; margin: 4px auto 0;
+  }
   .graph-toggle-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
   .graph-toggle-btn.open { color: var(--accent); border-color: rgba(0,255,179,0.3); background: var(--accent-dim); }
+
   #graphContainer { display: none; margin-top: 12px; }
   .param-select-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
   #paramSelect { background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 40px; font-size: 13px; font-family: var(--sans); cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6b8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; }
@@ -169,6 +173,83 @@
   .btn-state-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 20px; }
   .btn-state-badge.pressed { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,255,179,0.3); }
   .btn-state-badge.released { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* ===== 3D MODEL VIEWER ===== */
+  #model3dContainer {
+    display: none;
+    margin-bottom: 12px;
+  }
+  #model3dContainer .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #model3dWrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: #000;
+    border-radius: 0 0 var(--radius) var(--radius);
+    overflow: hidden;
+  }
+  #model3dCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  #model3dOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(10,10,15,0.92);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    z-index: 10;
+    transition: opacity 0.4s ease;
+  }
+  #model3dOverlay.hidden { opacity: 0; pointer-events: none; }
+  #model3dOverlay .loader-bar-wrap { width: 55%; }
+  #model3dOverlay .loader-bar { animation: none; transition: width 0.3s ease; }
+
+  .model-status-row {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+  }
+  .model-axis-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(0,255,179,0.5);
+    letter-spacing: 0.08em;
+  }
+  .model-reset-btn {
+    background: rgba(16,16,26,0.8);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+    pointer-events: all;
+    transition: 0.2s;
+  }
+  .model-reset-btn:hover { color: var(--accent); border-color: rgba(0,255,179,0.3); }
+
+  .sensor-toggle-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
 
   @media (max-width: 360px) {
     .mode-btn { font-size: 9px; padding: 8px 2px; } .mode-icon { font-size: 15px; }
@@ -218,13 +299,11 @@
           <button class="mode-btn" data-mode="draw" onclick="setMode('draw')"><span class="mode-icon">✏️</span>DRAW</button>
           <button class="mode-btn" data-mode="text" onclick="setMode('text')"><span class="mode-icon">💬</span>TEXT</button>
         </div>
-
         <div class="canvas-wrapper">
           <canvas id="eyeCanvas"></canvas>
           <div id="loadingBox"><div>Loading...</div><div class="loader-bar-wrap"><div class="loader-bar"></div></div></div>
           <div class="canvas-overlay-label" id="modeLabel">AUTO</div>
         </div>
-
         <div id="bottomToolbar" class="toolbar">
           <div id="brushSelector" class="brush-group" style="display:none;">
             <button class="brush-btn active" onclick="setBrushSize(2)" id="brushSmall"><div class="brush-dot dot-sm"></div></button>
@@ -236,16 +315,11 @@
             Clear
           </button>
         </div>
-
         <div id="infoText"></div>
       </div>
     </div>
-
-    <!-- MANUAL EYE STYLES — only visible in manual mode -->
     <div id="panelPresetManual" class="presets-section" style="display:none;">
-      <div class="presets-section-header">
-        <span class="presets-section-title">СТИЛЬ ГЛАЗ</span>
-      </div>
+      <div class="presets-section-header"><span class="presets-section-title">СТИЛЬ ГЛАЗ</span></div>
       <div class="mode-grid">
         <button class="mode-btn active manual-style-btn" data-style="default" onclick="setManualEyeStyle('default')"><span class="mode-icon">😐</span>DEFAULT</button>
         <button class="mode-btn manual-style-btn" data-style="angry" onclick="setManualEyeStyle('angry')"><span class="mode-icon">😠</span>ANGRY</button>
@@ -253,16 +327,10 @@
         <button class="mode-btn manual-style-btn" data-style="sad" onclick="setManualEyeStyle('sad')"><span class="mode-icon">😢</span>SAD</button>
       </div>
     </div>
-
-    <!-- DRAW PRESETS — only visible in draw mode -->
     <div id="panelPresetDraw" class="presets-section" style="display:none;">
-      <div class="presets-section-header">
-        <span class="presets-section-title">ЗАГОТОВКИ</span>
-      </div>
+      <div class="presets-section-header"><span class="presets-section-title">ЗАГОТОВКИ</span></div>
       <div class="draw-presets-grid" id="drawPresetsGrid"></div>
     </div>
-
-    <!-- TEXT PRESETS — only visible in text mode -->
     <div id="panelPresetText" class="presets-section" style="display:none;">
       <div class="presets-section-header">
         <span class="presets-section-title">ФРАЗЫ</span>
@@ -272,20 +340,48 @@
           <button class="lang-tab-btn" onclick="switchLang('en')">EN</button>
         </div>
       </div>
-      <div id="langPanelRu" class="lang-panel active">
-        <div class="text-presets-grid" id="textPresetsRu"></div>
-      </div>
-      <div id="langPanelUk" class="lang-panel">
-        <div class="text-presets-grid" id="textPresetsUk"></div>
-      </div>
-      <div id="langPanelEn" class="lang-panel">
-        <div class="text-presets-grid" id="textPresetsEn"></div>
-      </div>
+      <div id="langPanelRu" class="lang-panel active"><div class="text-presets-grid" id="textPresetsRu"></div></div>
+      <div id="langPanelUk" class="lang-panel"><div class="text-presets-grid" id="textPresetsUk"></div></div>
+      <div id="langPanelEn" class="lang-panel"><div class="text-presets-grid" id="textPresetsEn"></div></div>
     </div>
   </div>
 
   <!-- SENSORS TAB -->
   <div id="sensors" class="tab">
+
+    <!-- 3D MODEL TOGGLE BUTTON -->
+    <div class="sensor-toggle-row">
+      <button id="toggle3dBtn" class="graph-toggle-btn" onclick="toggle3DModel(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+        Show 3D Model
+      </button>
+    </div>
+
+    <!-- 3D MODEL CONTAINER -->
+    <div id="model3dContainer" class="card">
+      <div class="card-header">
+        <span class="card-title">3D Model · Live Orientation</span>
+        <span id="model3dStatus" class="status-err">NOT LOADED</span>
+      </div>
+      <div id="model3dWrap">
+        <canvas id="model3dCanvas"></canvas>
+        <!-- Loading overlay -->
+        <div id="model3dOverlay">
+          <div id="model3dLoadMsg">Загрузка модели...</div>
+          <div class="loader-bar-wrap">
+            <div class="loader-bar" id="model3dBar"></div>
+          </div>
+        </div>
+        <!-- Bottom HUD -->
+        <div class="model-status-row">
+          <span class="model-axis-badge" id="modelAxisInfo">X:0° Y:0° Z:0°</span>
+          <button class="model-reset-btn" onclick="resetModelOrientation()">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header"><span class="card-title">Buttons</span></div>
       <div class="card-body">
@@ -295,6 +391,7 @@
         </table>
       </div>
     </div>
+
     <div class="card">
       <div class="card-header"><span class="card-title">MPU6050</span><span id="mpuStatus" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
@@ -306,6 +403,7 @@
         </table>
       </div>
     </div>
+
     <div class="card">
       <div class="card-header"><span class="card-title">BMP180</span><span id="bmpStatusLabel" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
@@ -315,6 +413,7 @@
         </table>
       </div>
     </div>
+
     <div class="card">
       <div class="card-header"><span class="card-title">BH1750</span><span id="bh1750StatusLabel" class="status-err">NOT DETECTED</span></div>
       <div class="card-body">
@@ -322,6 +421,7 @@
         <table id="bh1750Table" class="data-table" style="display:none;"><tr><td>Illuminance</td><td id="lux">—</td></tr></table>
       </div>
     </div>
+
     <div style="display:flex; justify-content:center;">
       <button id="toggleGraphBtn" class="graph-toggle-btn" onclick="toggleGraph(this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Show Graph
@@ -373,7 +473,391 @@ const EYE_HEIGHT_DISP = 28;
 const EYE_RADIUS_DISP = 4;
 const MIN_GAP_DISP = 5;
 
-// ========== СОСТОЯНИЕ ==========
+// STL from Google Drive — direct download URL
+const STL_FILE_ID = '1tD4cwgkCTKJAwiBckLJHxrqs9s7Mod1U';
+const STL_URL = `https://corsproxy.io/?url=https://drive.google.com/uc?export=download%26id=${STL_FILE_ID}`;
+
+// ========== 3D MODEL STATE ==========
+let three = {
+  renderer: null,
+  scene: null,
+  camera: null,
+  mesh: null,
+  animFrameId: null,
+  initialized: false,
+  loaded: false
+};
+
+// Complementary filter state
+let cf = {
+  pitch: 0,   // rotation around X (tilt forward/back)
+  roll: 0,    // rotation around Y (tilt left/right)
+  yaw: 0,     // rotation around Z (spin) — gyro only
+  lastTime: null,
+  alpha: 0.96  // complementary filter coefficient
+};
+
+let lastMpuData = { ax: 0, ay: 0, az: 1, gx: 0, gy: 0, gz: 0 };
+let model3dVisible = false;
+
+// ========== TOGGLE 3D MODEL ==========
+function toggle3DModel(btn) {
+  const container = document.getElementById('model3dContainer');
+  model3dVisible = !model3dVisible;
+  container.style.display = model3dVisible ? 'block' : 'none';
+  btn.classList.toggle('open', model3dVisible);
+  btn.innerHTML = model3dVisible
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Hide 3D Model`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Show 3D Model`;
+
+  if (model3dVisible && !three.initialized) {
+    init3DScene();
+  } else if (model3dVisible && three.initialized) {
+    resize3DCanvas();
+    if (!three.animFrameId) animate3D();
+  } else if (!model3dVisible && three.animFrameId) {
+    cancelAnimationFrame(three.animFrameId);
+    three.animFrameId = null;
+  }
+}
+
+// ========== INIT THREE.JS SCENE ==========
+function init3DScene() {
+  three.initialized = true;
+  const wrap = document.getElementById('model3dWrap');
+  const canvas3d = document.getElementById('model3dCanvas');
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+
+  // Renderer
+  three.renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true, alpha: false });
+  three.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  three.renderer.setSize(W, H);
+  three.renderer.setClearColor(0x000000, 1);
+
+  // Scene
+  three.scene = new THREE.Scene();
+
+  // Camera
+  three.camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 2000);
+  three.camera.position.set(0, 0, 300);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x334455, 1.2);
+  three.scene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0x00ffb3, 1.8);
+  dirLight.position.set(1, 2, 3);
+  three.scene.add(dirLight);
+
+  const fillLight = new THREE.DirectionalLight(0x4466ff, 0.6);
+  fillLight.position.set(-2, -1, -1);
+  three.scene.add(fillLight);
+
+  // Grid helper (floor reference)
+  const gridHelper = new THREE.GridHelper(300, 20, 0x1a1a2e, 0x111122);
+  gridHelper.position.y = -80;
+  three.scene.add(gridHelper);
+
+  // Axis helper
+  const axesHelper = new THREE.AxesHelper(60);
+  three.scene.add(axesHelper);
+
+  // Load STL
+  loadSTLModel();
+
+  // Start render loop
+  animate3D();
+
+  window.addEventListener('resize', resize3DCanvas);
+}
+
+// ========== PARSE STL (binary + ascii) ==========
+function parseSTL(buffer) {
+  // Try binary first (starts after 80 byte header)
+  const view = new DataView(buffer);
+  const numTriangles = view.getUint32(80, true);
+  const expectedBinarySize = 84 + numTriangles * 50;
+
+  const geometry = new THREE.BufferGeometry();
+  const positions = [];
+  const normals = [];
+
+  if (buffer.byteLength === expectedBinarySize && numTriangles > 0) {
+    // Binary STL
+    let offset = 84;
+    for (let i = 0; i < numTriangles; i++) {
+      const nx = view.getFloat32(offset, true);
+      const ny = view.getFloat32(offset + 4, true);
+      const nz = view.getFloat32(offset + 8, true);
+      offset += 12;
+      for (let v = 0; v < 3; v++) {
+        positions.push(
+          view.getFloat32(offset, true),
+          view.getFloat32(offset + 4, true),
+          view.getFloat32(offset + 8, true)
+        );
+        normals.push(nx, ny, nz);
+        offset += 12;
+      }
+      offset += 2; // attribute byte count
+    }
+  } else {
+    // ASCII STL
+    const text = new TextDecoder().decode(buffer);
+    const vertexRegex = /vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    const normalRegex = /facet normal\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    let vMatch, nMatch;
+    const normalsArr = [];
+    while ((nMatch = normalRegex.exec(text)) !== null) {
+      normalsArr.push([parseFloat(nMatch[1]), parseFloat(nMatch[2]), parseFloat(nMatch[3])]);
+    }
+    let triIdx = 0;
+    let vCount = 0;
+    while ((vMatch = vertexRegex.exec(text)) !== null) {
+      positions.push(parseFloat(vMatch[1]), parseFloat(vMatch[2]), parseFloat(vMatch[3]));
+      if (normalsArr[triIdx]) normals.push(...normalsArr[triIdx]);
+      else normals.push(0, 0, 1);
+      vCount++;
+      if (vCount % 3 === 0) triIdx++;
+    }
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.computeVertexNormals(); // smooth out normals
+  return geometry;
+}
+
+// ========== LOAD STL FROM GOOGLE DRIVE VIA PROXY ==========
+function loadSTLModel() {
+  setModel3dStatus('LOADING...', false);
+  setModelOverlay('Загрузка модели...', 0);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', STL_URL, true);
+  xhr.responseType = 'arraybuffer';
+
+  xhr.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      setModelOverlay(`Загрузка... ${pct}%`, pct);
+    } else {
+      setModelOverlay(`Загрузка... ${Math.round(e.loaded / 1024)} KB`, -1);
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        setModelOverlay('Обработка геометрии...', 95);
+        const geometry = parseSTL(xhr.response);
+        buildModel(geometry);
+      } catch(e) {
+        setModelOverlay('Ошибка парсинга STL', -2);
+        setModel3dStatus('PARSE ERROR', false);
+        console.error('STL parse error:', e);
+      }
+    } else {
+      setModelOverlay('Ошибка загрузки (' + xhr.status + ')', -2);
+      setModel3dStatus('LOAD ERROR', false);
+    }
+  };
+
+  xhr.onerror = () => {
+    // Fallback: try without proxy
+    setModelOverlay('Proxy failed, trying direct...', -1);
+    loadSTLFallback();
+  };
+
+  xhr.send();
+}
+
+function loadSTLFallback() {
+  const directUrl = `https://drive.google.com/uc?export=download&id=${STL_FILE_ID}`;
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', directUrl, true);
+  xhr.responseType = 'arraybuffer';
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        const geometry = parseSTL(xhr.response);
+        buildModel(geometry);
+      } catch(e) {
+        showPlaceholderModel();
+      }
+    } else {
+      showPlaceholderModel();
+    }
+  };
+  xhr.onerror = () => showPlaceholderModel();
+  xhr.send();
+}
+
+function buildModel(geometry) {
+  // Center geometry
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  geometry.translate(-center.x, -center.y, -center.z);
+
+  // Scale to fit view
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scale = 120 / maxDim;
+
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x00ccff,
+    emissive: 0x002233,
+    specular: 0x00ffb3,
+    shininess: 60,
+    wireframe: false
+  });
+
+  three.mesh = new THREE.Mesh(geometry, material);
+  three.mesh.scale.setScalar(scale);
+
+  // MPU6050 horizontal → Z is up in real world, map to Three.js Y-up
+  // Initial rotation: flip so model faces camera naturally
+  three.mesh.rotation.x = -Math.PI / 2;
+
+  three.scene.add(three.mesh);
+  three.loaded = true;
+
+  hideModelOverlay();
+  setModel3dStatus('OK', true);
+}
+
+function showPlaceholderModel() {
+  // Fallback: show a stylized box as placeholder
+  const geo = new THREE.BoxGeometry(80, 50, 30);
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0x00ccff, emissive: 0x001122,
+    specular: 0x00ffb3, shininess: 40, wireframe: false
+  });
+  three.mesh = new THREE.Mesh(geo, mat);
+
+  // Add wireframe overlay
+  const wfMat = new THREE.MeshBasicMaterial({ color: 0x00ffb3, wireframe: true, opacity: 0.15, transparent: true });
+  const wfMesh = new THREE.Mesh(geo, wfMat);
+  three.mesh.add(wfMesh);
+
+  three.scene.add(three.mesh);
+  three.loaded = true;
+
+  setModelOverlay('STL недоступен — показана заглушка', -2);
+  setTimeout(hideModelOverlay, 2500);
+  setModel3dStatus('PLACEHOLDER', false);
+}
+
+// ========== COMPLEMENTARY FILTER ==========
+function updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt) {
+  if (dt <= 0 || dt > 0.5) return; // skip bad dt
+
+  // Normalize accelerometer
+  const accMag = Math.sqrt(ax*ax + ay*ay + az*az);
+  if (accMag < 0.1) return;
+  const axN = ax / accMag;
+  const ayN = ay / accMag;
+  const azN = az / accMag;
+
+  // Accel-derived angles (MPU6050 horizontal: Z points up)
+  // pitch = tilt around X axis, roll = tilt around Y axis
+  const accelPitch = Math.atan2(ayN, azN);
+  const accelRoll  = Math.atan2(-axN, azN);
+
+  // Gyro integration (rad/s → rad)
+  // MPU6050 data from ESP: gyro_x, gyro_y, gyro_z in rad/s
+  cf.pitch = cf.alpha * (cf.pitch + gx * dt) + (1 - cf.alpha) * accelPitch;
+  cf.roll  = cf.alpha * (cf.roll  + gy * dt) + (1 - cf.alpha) * accelRoll;
+  cf.yaw  += gz * dt; // pure gyro integration for yaw
+}
+
+function applyOrientationToModel() {
+  if (!three.mesh) return;
+
+  // Base rotation: flip model so Y-up = real-world Z-up
+  // Then apply complementary filter angles
+  three.mesh.rotation.x = -Math.PI / 2 + cf.pitch;
+  three.mesh.rotation.z = cf.roll;
+  three.mesh.rotation.y = cf.yaw;
+
+  // Update HUD
+  const toDeg = r => Math.round(r * 180 / Math.PI);
+  document.getElementById('modelAxisInfo').textContent =
+    `P:${toDeg(cf.pitch)}° R:${toDeg(cf.roll)}° Y:${toDeg(cf.yaw)}°`;
+}
+
+function resetModelOrientation() {
+  cf.pitch = 0; cf.roll = 0; cf.yaw = 0; cf.lastTime = null;
+}
+
+// ========== UPDATE FROM SENSOR DATA ==========
+function updateModel3DFromSensor(data) {
+  if (!model3dVisible || !three.loaded) return;
+  if (!data.mpu_ok) return;
+
+  const ax = data.accel_x ?? 0;
+  const ay = data.accel_y ?? 0;
+  const az = data.accel_z ?? 0;
+  const gx = data.gyro_x ?? 0;
+  const gy = data.gyro_y ?? 0;
+  const gz = data.gyro_z ?? 0;
+
+  const now = performance.now() / 1000;
+  const dt = cf.lastTime ? (now - cf.lastTime) : 0;
+  cf.lastTime = now;
+
+  updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt);
+  applyOrientationToModel();
+
+  lastMpuData = { ax, ay, az, gx, gy, gz };
+}
+
+// ========== 3D RENDER LOOP ==========
+function animate3D() {
+  if (!model3dVisible) { three.animFrameId = null; return; }
+  three.animFrameId = requestAnimationFrame(animate3D);
+  if (three.renderer && three.scene && three.camera) {
+    three.renderer.render(three.scene, three.camera);
+  }
+}
+
+function resize3DCanvas() {
+  if (!three.renderer || !three.camera) return;
+  const wrap = document.getElementById('model3dWrap');
+  if (!wrap) return;
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight || 280;
+  three.renderer.setSize(W, H);
+  three.camera.aspect = W / H;
+  three.camera.updateProjectionMatrix();
+}
+
+// ========== UI HELPERS ==========
+function setModel3dStatus(text, ok) {
+  const el = document.getElementById('model3dStatus');
+  el.textContent = text;
+  el.className = ok ? 'status-ok' : 'status-err';
+}
+
+function setModelOverlay(msg, progress) {
+  const overlay = document.getElementById('model3dOverlay');
+  const msgEl = document.getElementById('model3dLoadMsg');
+  const bar = document.getElementById('model3dBar');
+  overlay.classList.remove('hidden');
+  msgEl.textContent = msg;
+  if (progress >= 0) bar.style.width = progress + '%';
+}
+
+function hideModelOverlay() {
+  const overlay = document.getElementById('model3dOverlay');
+  overlay.classList.add('hidden');
+}
+
+// ========== ОСТАЛЬНОЕ (без изменений) ==========
 let mode = "auto";
 let leftEyeDisp = { x: 40, y: 32, blink: false };
 let rightEyeDisp = { x: 88, y: 32, blink: false };
@@ -405,11 +889,7 @@ let selectedDrawPreset = -1;
 let currentLang = 'ru';
 let manualEyeStyle = 'default';
 
-// ========== PRESET DATA ==========
-
-
 const DRAW_PRESETS = [
-  // ── ЭМОЦИИ ──
   { label: 'УЛЫБКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(Math.PI+t)),y:Math.round(38+18*Math.sin(Math.PI+t))}); return p; })() },{ size:3, points:[{x:48,y:24},{x:48,y:24}] },{ size:3, points:[{x:80,y:24},{x:80,y:24}] }] },
   { label: 'ГРУСТЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(t)),y:Math.round(46-18*Math.sin(t))}); return p; })() },{ size:3, points:[{x:48,y:22},{x:48,y:22}] },{ size:3, points:[{x:80,y:22},{x:80,y:22}] }] },
   { label: 'УДИВЛЕНИЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:3, points:[{x:50,y:26},{x:50,y:26}] },{ size:3, points:[{x:78,y:26},{x:78,y:26}] },{ size:2, points:[{x:64,y:36},{x:64,y:42}] },{ size:2, points:[{x:64,y:46},{x:64,y:48}] }] },
@@ -419,110 +899,21 @@ const DRAW_PRESETS = [
   { label: '>_<', strokes: [{ size:2, points:[{x:40,y:20},{x:56,y:32},{x:40,y:44}] },{ size:2, points:[{x:88,y:20},{x:72,y:32},{x:88,y:44}] },{ size:2, points:[{x:48,y:54},{x:80,y:54}] }] },
   { label: ':3', strokes: [{ size:3, points:[{x:44,y:28},{x:44,y:28}] },{ size:3, points:[{x:84,y:28},{x:84,y:28}] },{ size:2, points:[{x:52,y:40},{x:64,y:36},{x:76,y:40}] },{ size:2, points:[{x:52,y:40},{x:58,y:44},{x:64,y:40}] },{ size:2, points:[{x:76,y:40},{x:70,y:44},{x:64,y:40}] }] },
   { label: 'WOW', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(50+7*Math.cos(t)),y:Math.round(24+6*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(78+7*Math.cos(t)),y:Math.round(24+6*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(64+7*Math.cos(t)),y:Math.round(44+6*Math.sin(t))}); return p; })() }] },
-
-  // ── МИЛЫЕ СУЩЕСТВА ──
   { label: 'КОШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(34+14*Math.sin(t))}); return p; })() },{ size:2, points:[{x:50,y:21},{x:48,y:12},{x:56,y:22}] },{ size:2, points:[{x:78,y:21},{x:80,y:12},{x:72,y:22}] },{ size:3, points:[{x:58,y:32},{x:58,y:32}] },{ size:3, points:[{x:70,y:32},{x:70,y:32}] },{ size:2, points:[{x:56,y:40},{x:64,y:44},{x:72,y:40}] }] },
   { label: 'МИШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+18*Math.cos(t)),y:Math.round(35+16*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(46+8*Math.cos(t)),y:Math.round(20+8*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(82+8*Math.cos(t)),y:Math.round(20+8*Math.sin(t))}); return p; })() },{ size:3, points:[{x:58,y:33},{x:58,y:33}] },{ size:3, points:[{x:70,y:33},{x:70,y:33}] },{ size:3, points:[{x:64,y:40},{x:64,y:40}] }] },
   { label: 'СОБАКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+18*Math.cos(t)),y:Math.round(33+15*Math.sin(t))}); return p; })() },{ size:2, points:[{x:46,y:18},{x:40,y:28},{x:48,y:28}] },{ size:2, points:[{x:82,y:18},{x:88,y:28},{x:80,y:28}] },{ size:3, points:[{x:57,y:30},{x:57,y:30}] },{ size:3, points:[{x:71,y:30},{x:71,y:30}] },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(64+8*Math.cos(Math.PI+t)),y:Math.round(42+6*Math.sin(Math.PI+t))}); return p; })() },{ size:2, points:[{x:80,y:44},{x:90,y:38},{x:92,y:44}] }] },
-  { label: 'ЛЯГУШКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+20*Math.cos(t)),y:Math.round(36+16*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(48+9*Math.cos(t)),y:Math.round(22+8*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(80+9*Math.cos(t)),y:Math.round(22+8*Math.sin(t))}); return p; })() },{ size:3, points:[{x:48,y:22},{x:48,y:22}] },{ size:3, points:[{x:80,y:22},{x:80,y:22}] },{ size:2, points:[{x:56,y:42},{x:64,y:46},{x:72,y:42}] }] },
-  { label: 'ПИНГВИН', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+14*Math.cos(t)),y:Math.round(32+22*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI*0.7;t<=Math.PI*0.7;t+=0.2) p.push({x:Math.round(64+10*Math.cos(t)),y:Math.round(34+14*Math.sin(t))}); return p; })() },{ size:3, points:[{x:58,y:24},{x:58,y:24}] },{ size:3, points:[{x:70,y:24},{x:70,y:24}] },{ size:2, points:[{x:60,y:30},{x:64,y:34},{x:68,y:30}] },{ size:2, points:[{x:50,y:38},{x:42,y:32}] },{ size:2, points:[{x:78,y:38},{x:86,y:32}] }] },
-  { label: 'АКУЛА', strokes: [{ size:2, points:[{x:10,y:40},{x:30,y:24},{x:50,y:38},{x:80,y:20},{x:110,y:38},{x:120,y:32}] },{ size:2, points:[{x:10,y:40},{x:40,y:48},{x:70,y:44},{x:110,y:48},{x:120,y:32}] },{ size:2, points:[{x:70,y:20},{x:76,y:10},{x:82,y:20}] },{ size:3, points:[{x:36,y:35},{x:36,y:35}] }] },
-  { label: 'ОСЬМИНОГ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(22+13*Math.sin(t))}); return p; })() },{ size:3, points:[{x:56,y:18},{x:56,y:18}] },{ size:3, points:[{x:72,y:18},{x:72,y:18}] },{ size:2, points:[{x:44,y:35},{x:40,y:44},{x:44,y:52}] },{ size:2, points:[{x:52,y:35},{x:50,y:46},{x:52,y:54}] },{ size:2, points:[{x:64,y:35},{x:64,y:47},{x:64,y:55}] },{ size:2, points:[{x:76,y:35},{x:78,y:46},{x:76,y:54}] },{ size:2, points:[{x:84,y:35},{x:88,y:44},{x:84,y:52}] }] },
-  { label: 'ЕДИНОРОГ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(60+16*Math.cos(t)),y:Math.round(26+14*Math.sin(t))}); return p; })() },{ size:2, points:[{x:60,y:12},{x:64,y:2},{x:66,y:12}] },{ size:2, points:[{x:44,y:40},{x:36,y:56}] },{ size:2, points:[{x:54,y:40},{x:50,y:56}] },{ size:2, points:[{x:70,y:40},{x:74,y:56}] },{ size:2, points:[{x:76,y:40},{x:84,y:56}] },{ size:2, points:[{x:44,y:40},{x:76,y:40},{x:80,y:28},{x:76,y:40}] }] },
-  { label: 'ДИНОЗАВР', strokes: [{ size:2, points:[{x:80,y:8},{x:90,y:16},{x:86,y:22},{x:78,y:20},{x:72,y:28},{x:68,y:40},{x:60,y:54},{x:50,y:58}] },{ size:2, points:[{x:68,y:40},{x:78,y:44},{x:86,y:54}] },{ size:2, points:[{x:72,y:28},{x:52,y:30},{x:46,y:38},{x:50,y:46},{x:60,y:44},{x:68,y:40}] },{ size:2, points:[{x:52,y:30},{x:44,y:22},{x:48,y:18}] },{ size:3, points:[{x:84,y:14},{x:84,y:14}] }] },
-
-  // ── МЕМЫ / ИНТЕРНЕТ ──
-  { label: 'TROLLFACE', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(30+24*Math.sin(t))}); return p; })() },{ size:2, points:[{x:44,y:22},{x:56,y:28}] },{ size:2, points:[{x:84,y:22},{x:72,y:28}] },{ size:3, points:[{x:52,y:26},{x:52,y:26}] },{ size:3, points:[{x:76,y:26},{x:76,y:26}] },{ size:2, points:[{x:40,y:38},{x:50,y:34},{x:58,y:40},{x:70,y:34},{x:78,y:40},{x:88,y:34}] },{ size:2, points:[{x:40,y:44},{x:88,y:44}] }] },
-  { label: 'DOGE', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+22*Math.cos(t)),y:Math.round(32+22*Math.sin(t))}); return p; })() },{ size:2, points:[{x:44,y:14},{x:38,y:28},{x:48,y:28}] },{ size:3, points:[{x:55,y:28},{x:55,y:28}] },{ size:3, points:[{x:73,y:28},{x:73,y:28}] },{ size:2, points:[{x:58,y:38},{x:70,y:38}] },{ size:2, points:[{x:56,y:44},{x:72,y:44}] },{ size:2, points:[{x:60,y:50},{x:68,y:50}] }] },
-  { label: 'NYAN CAT', strokes: [{ size:2, points:[{x:30,y:22},{x:100,y:22},{x:100,y:46},{x:30,y:46},{x:30,y:22}] },{ size:2, points:[{x:30,y:22},{x:24,y:14},{x:36,y:22}] },{ size:2, points:[{x:100,y:22},{x:94,y:14},{x:106,y:22}] },{ size:3, points:[{x:50,y:32},{x:50,y:32}] },{ size:3, points:[{x:70,y:32},{x:70,y:32}] },{ size:2, points:[{x:52,y:40},{x:60,y:44},{x:68,y:40}] },{ size:2, points:[{x:6,y:26},{x:14,y:30},{x:6,y:34},{x:14,y:38}] },{ size:2, points:[{x:14,y:26},{x:22,y:30},{x:14,y:34},{x:22,y:38}] }] },
-  { label: 'ПОКЕМОН', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:[{x:40,y:32},{x:88,y:32}] },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(64+8*Math.cos(t)),y:Math.round(32+8*Math.sin(t))}); return p; })() },{ size:3, points:[{x:64,y:32},{x:64,y:32}] }] },
-  { label: 'ЧЕРЕП', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=Math.PI;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+22*Math.cos(t)),y:Math.round(28+20*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(64+22*Math.cos(t)),y:Math.round(28+22*Math.sin(t))}); return p; })() },{ size:2, points:[{x:42,y:40},{x:42,y:52},{x:86,y:52},{x:86,y:40}] },{ size:2, points:[{x:56,y:52},{x:56,y:44},{x:64,y:44},{x:64,y:52}] },{ size:2, points:[{x:72,y:52},{x:72,y:44}] },{ size:3, points:[{x:54,y:28},{x:54,y:28}] },{ size:3, points:[{x:74,y:28},{x:74,y:28}] },{ size:2, points:[{x:60,y:36},{x:68,y:36}] }] },
-  { label: 'БОМБА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(62+22*Math.cos(t)),y:Math.round(36+22*Math.sin(t))}); return p; })() },{ size:2, points:[{x:76,y:16},{x:84,y:8}] },{ size:2, points:[{x:84,y:8},{x:92,y:4},{x:90,y:12}] },{ size:3, points:[{x:52,y:32},{x:52,y:32}] },{ size:3, points:[{x:68,y:32},{x:68,y:32}] },{ size:2, points:[{x:58,y:44},{x:66,y:44}] }] },
-  { label: 'ПРИШЕЛЕЦ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+20*Math.cos(t)),y:Math.round(28+20*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(52+7*Math.cos(t)),y:Math.round(22+9*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.3) p.push({x:Math.round(76+7*Math.cos(t)),y:Math.round(22+9*Math.sin(t))}); return p; })() },{ size:2, points:[{x:44,y:48},{x:50,y:42},{x:58,y:48}] },{ size:2, points:[{x:84,y:48},{x:78,y:42},{x:70,y:48}] },{ size:2, points:[{x:58,y:50},{x:70,y:50}] }] },
-  { label: 'ФЕЙСПАЛМ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+18*Math.cos(t)),y:Math.round(22+18*Math.sin(t))}); return p; })() },{ size:2, points:[{x:30,y:28},{x:24,y:34},{x:28,y:44},{x:100,y:44},{x:104,y:34},{x:98,y:28}] },{ size:2, points:[{x:46,y:28},{x:46,y:44}] },{ size:2, points:[{x:64,y:28},{x:64,y:44}] },{ size:2, points:[{x:82,y:28},{x:82,y:44}] },{ size:2, points:[{x:30,y:44},{x:40,y:56},{x:88,y:56},{x:100,y:44}] },{ size:3, points:[{x:57,y:20},{x:57,y:20}] },{ size:3, points:[{x:71,y:20},{x:71,y:20}] },{ size:2, points:[{x:60,y:28},{x:68,y:28}] }] },
-  { label: 'OK рука', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.25) p.push({x:Math.round(52+12*Math.cos(t)),y:Math.round(24+12*Math.sin(t))}); return p; })() },{ size:2, points:[{x:64,y:22},{x:70,y:16},{x:76,y:12},{x:80,y:18}] },{ size:2, points:[{x:64,y:28},{x:72,y:22},{x:80,y:22},{x:84,y:28}] },{ size:2, points:[{x:64,y:32},{x:74,y:30},{x:82,y:32},{x:84,y:38}] },{ size:2, points:[{x:64,y:36},{x:72,y:36},{x:78,y:40},{x:76,y:48}] },{ size:2, points:[{x:40,y:36},{x:40,y:54},{x:50,y:58},{x:60,y:56},{x:64,y:48}] }] },
-
-  // ── СИМВОЛЫ / ЗНАКИ ──
   { label: 'СЕРДЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.1){ p.push({x:Math.round(64+18*(16*Math.pow(Math.sin(t),3))/16),y:Math.round(32-18*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/16)}); } return p; })() }] },
-  { label: 'РАЗБИТ.❤', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.1){ p.push({x:Math.round(64+18*(16*Math.pow(Math.sin(t),3))/16),y:Math.round(32-18*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/16)}); } return p; })() },{ size:2, points:[{x:64,y:14},{x:58,y:26},{x:70,y:32},{x:64,y:52}] }] },
   { label: 'ЗВЕЗДА', strokes: [{ size:2, points:(()=>{ const p=[],cx=64,cy=32,r1=22,r2=10,n=5; for(let i=0;i<=n*2;i++){const a=(Math.PI/n)*i-Math.PI/2,r=i%2===0?r1:r2; p.push({x:Math.round(cx+r*Math.cos(a)),y:Math.round(cy+r*Math.sin(a))}); } return p; })() }] },
-  { label: 'ЗВЕЗДА 8', strokes: [{ size:2, points:(()=>{ const p=[],cx=64,cy=32,r1=22,r2=10,n=8; for(let i=0;i<=n*2;i++){const a=(Math.PI/n)*i-Math.PI/2,r=i%2===0?r1:r2; p.push({x:Math.round(cx+r*Math.cos(a)),y:Math.round(cy+r*Math.sin(a))}); } return p; })() }] },
   { label: 'МОЛНИЯ', strokes: [{ size:2, points:[{x:72,y:8},{x:56,y:32},{x:70,y:32},{x:54,y:56}] }] },
-  { label: 'МИР', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:[{x:64,y:8},{x:64,y:56}] },{ size:2, points:[{x:64,y:40},{x:42,y:52}] },{ size:2, points:[{x:64,y:40},{x:86,y:52}] }] },
-  { label: 'БЕСКОНЕЧ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.1){ const x=Math.round(64+28*Math.cos(t)/(1+Math.sin(t)*Math.sin(t))); const y=Math.round(32+20*Math.sin(t)*Math.cos(t)/(1+Math.sin(t)*Math.sin(t))); p.push({x,y}); } return p; })() }] },
-  { label: 'ИНЬ-ЯНЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.2) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI/2;t<=Math.PI/2;t+=0.15) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=Math.PI/2;t<=Math.PI*1.5;t+=0.2) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(20+12*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI/2;t<=Math.PI/2;t+=0.2) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(44+12*Math.sin(t))}); return p; })() }] },
-  { label: 'МИШЕНЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.2) p.push({x:Math.round(64+24*Math.cos(t)),y:Math.round(32+24*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.25) p.push({x:Math.round(64+13*Math.cos(t)),y:Math.round(32+13*Math.sin(t))}); return p; })() },{ size:3, points:[{x:64,y:32},{x:64,y:32}] }] },
-  { label: 'СПИРАЛЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.5;t<=Math.PI*4.5;t+=0.18){ const r=t*2.2; if(r>28) break; p.push({x:Math.round(64+r*Math.cos(t)),y:Math.round(32+r*Math.sin(t)*0.75)}); } return p; })() }] },
-  { label: 'ДИАМАНТ', strokes: [{ size:2, points:[{x:64,y:6},{x:100,y:32},{x:64,y:58},{x:28,y:32},{x:64,y:6}] },{ size:2, points:[{x:28,y:32},{x:100,y:32}] },{ size:2, points:[{x:64,y:6},{x:50,y:32},{x:64,y:58}] },{ size:2, points:[{x:64,y:6},{x:78,y:32},{x:64,y:58}] }] },
-
-  // ── ПРИРОДА / ПРЕДМЕТЫ ──
   { label: 'СОЛНЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.25) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(32+12*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const rays=[[0,-1],[0.7,-0.7],[1,0],[0.7,0.7],[0,1],[-0.7,0.7],[-1,0],[-0.7,-0.7]]; return rays.flatMap(([dx,dy])=>[{x:Math.round(64+16*dx),y:Math.round(32+16*dy)},{x:Math.round(64+24*dx),y:Math.round(32+24*dy)},{x:Math.round(64+16*dx),y:Math.round(32+16*dy)}]); })() }] },
-  { label: 'ЛУНА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI*0.4;t<=Math.PI*0.4+0.1;t+=0.15) p.push({x:Math.round(64+24*Math.cos(t+Math.PI)),y:Math.round(32+24*Math.sin(t+Math.PI))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=-Math.PI*0.6;t<=Math.PI*0.6+0.1;t+=0.15) p.push({x:Math.round(64+20*Math.cos(t+Math.PI)),y:Math.round(32+20*Math.sin(t+Math.PI))}); return p; })() }] },
-  { label: 'ГРИБ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.18) p.push({x:Math.round(64+26*Math.cos(t+Math.PI)),y:Math.round(28+20*Math.sin(t+Math.PI))}); return p; })() },{ size:2, points:[{x:38,y:28},{x:44,y:46},{x:84,y:46},{x:90,y:28}] },{ size:2, points:[{x:56,y:46},{x:56,y:56},{x:72,y:56},{x:72,y:46}] },{ size:3, points:[{x:54,y:22},{x:54,y:22}] },{ size:3, points:[{x:74,y:18},{x:74,y:18}] }] },
-  { label: 'ГОРЫ', strokes: [{ size:2, points:[{x:4,y:56},{x:28,y:16},{x:50,y:36},{x:72,y:8},{x:96,y:36},{x:114,y:18},{x:124,y:32},{x:124,y:56},{x:4,y:56}] }] },
-  { label: 'ПАЛЬМА', strokes: [{ size:2, points:[{x:64,y:56},{x:62,y:20}] },{ size:2, points:[{x:62,y:20},{x:40,y:14},{x:36,y:8},{x:46,y:18}] },{ size:2, points:[{x:62,y:20},{x:84,y:14},{x:90,y:8},{x:80,y:18}] },{ size:2, points:[{x:62,y:22},{x:52,y:10},{x:56,y:6},{x:62,y:16}] },{ size:2, points:[{x:62,y:22},{x:72,y:10},{x:68,y:6},{x:62,y:16}] }] },
-  { label: 'ЦВЕТОК', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2+0.1;t+=0.12){ const r=12+9*Math.cos(6*t); p.push({x:Math.round(64+r*Math.cos(t)),y:Math.round(32+r*Math.sin(t))}); } return p; })() }] },
-  { label: 'РАКЕТА', strokes: [{ size:2, points:[{x:64,y:6},{x:80,y:26},{x:78,y:46},{x:50,y:46},{x:48,y:26},{x:64,y:6}] },{ size:2, points:[{x:50,y:46},{x:44,y:56},{x:52,y:50}] },{ size:2, points:[{x:78,y:46},{x:84,y:56},{x:76,y:50}] },{ size:3, points:[{x:64,y:22},{x:64,y:22}] }] },
-  { label: 'ПИЦЦА', strokes: [{ size:2, points:[{x:64,y:8},{x:20,y:54},{x:108,y:54},{x:64,y:8}] },{ size:2, points:[{x:64,y:8},{x:64,y:54}] },{ size:2, points:[{x:42,y:31},{x:86,y:31}] },{ size:3, points:[{x:52,y:22},{x:52,y:22}] },{ size:3, points:[{x:72,y:40},{x:72,y:40}] },{ size:3, points:[{x:50,y:44},{x:50,y:44}] }] },
-  { label: 'КОРОНА', strokes: [{ size:2, points:[{x:30,y:50},{x:30,y:28},{x:44,y:38},{x:64,y:16},{x:84,y:38},{x:98,y:28},{x:98,y:50},{x:30,y:50}] },{ size:3, points:[{x:44,y:38},{x:44,y:38}] },{ size:3, points:[{x:64,y:16},{x:64,y:16}] },{ size:3, points:[{x:84,y:38},{x:84,y:38}] }] },
-  { label: 'ДОМИК', strokes: [{ size:2, points:[{x:28,y:50},{x:28,y:30},{x:64,y:10},{x:100,y:30},{x:100,y:50},{x:28,y:50}] },{ size:2, points:[{x:52,y:50},{x:52,y:36},{x:76,y:36},{x:76,y:50}] }] },
-  { label: 'ВОЛНА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let x=8;x<=120;x+=3) p.push({x,y:Math.round(32+12*Math.sin((x-8)*0.18))}); return p; })() }] },
-
-  // ── НЕЦЕНЗУРНЫЕ (пиктограммы 18+) ──
-  { label: 'КУКИШ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.2) p.push({x:Math.round(64+16*Math.cos(t)),y:Math.round(40+14*Math.sin(t))}); return p; })() },{ size:2, points:[{x:64,y:26},{x:62,y:14},{x:68,y:12},{x:70,y:18},{x:66,y:24}] },{ size:2, points:[{x:70,y:24},{x:74,y:14},{x:80,y:14},{x:80,y:22}] },{ size:2, points:[{x:80,y:22},{x:82,y:16},{x:86,y:18},{x:84,y:26}] }] },
-  { label: 'БОЛЬШОЙ ↑', strokes: [{ size:2, points:[{x:56,y:56},{x:56,y:34},{x:60,y:34},{x:60,y:20},{x:68,y:20},{x:68,y:34}] },{ size:2, points:[{x:68,y:28},{x:72,y:26},{x:74,y:30},{x:72,y:34},{x:68,y:34}] },{ size:2, points:[{x:72,y:32},{x:76,y:30},{x:78,y:34},{x:76,y:38},{x:72,y:38}] },{ size:2, points:[{x:56,y:46},{x:52,y:44},{x:50,y:48},{x:52,y:54},{x:56,y:56}] },{ size:2, points:[{x:56,y:56},{x:76,y:56},{x:78,y:52},{x:76,y:46}] }] },
-  { label: 'БОЛЬШОЙ ↓', strokes: [{ size:2, points:[{x:56,y:8},{x:56,y:30},{x:60,y:30},{x:60,y:44},{x:68,y:44},{x:68,y:30}] },{ size:2, points:[{x:68,y:36},{x:72,y:38},{x:74,y:34},{x:72,y:30},{x:68,y:30}] },{ size:2, points:[{x:72,y:32},{x:76,y:34},{x:78,y:30},{x:76,y:26},{x:72,y:26}] },{ size:2, points:[{x:56,y:18},{x:52,y:20},{x:50,y:16},{x:52,y:10},{x:56,y:8}] },{ size:2, points:[{x:56,y:8},{x:76,y:8},{x:78,y:12},{x:76,y:18}] }] },
-  { label: 'WILLY', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(64+10*Math.cos(t+Math.PI)),y:Math.round(18+10*Math.sin(t+Math.PI))}); return p; })() },{ size:2, points:[{x:54,y:18},{x:52,y:50},{x:76,y:50},{x:74,y:18}] },{ size:3, points:[{x:48,y:44},{x:48,y:44}] },{ size:3, points:[{x:80,y:44},{x:80,y:44}] }] },
-  { label: 'СИСЬКИ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(46+16*Math.cos(t)),y:Math.round(36+18*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.2) p.push({x:Math.round(82+16*Math.cos(t)),y:Math.round(36+18*Math.sin(t))}); return p; })() },{ size:2, points:[{x:30,y:36},{x:30,y:18},{x:98,y:18},{x:98,y:36}] },{ size:3, points:[{x:46,y:30},{x:46,y:30}] },{ size:3, points:[{x:82,y:30},{x:82,y:30}] }] },
-  { label: 'ПОПА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.18) p.push({x:Math.round(46+20*Math.cos(t)),y:Math.round(32+20*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI;t+=0.18) p.push({x:Math.round(82+20*Math.cos(t)),y:Math.round(32+20*Math.sin(t))}); return p; })() },{ size:2, points:[{x:26,y:32},{x:26,y:52},{x:102,y:52},{x:102,y:32}] },{ size:2, points:[{x:64,y:20},{x:64,y:52}] }] },
-  { label: 'XD морда', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.18) p.push({x:Math.round(64+26*Math.cos(t)),y:Math.round(32+26*Math.sin(t))}); return p; })() },{ size:2, points:[{x:42,y:20},{x:56,y:32},{x:42,y:44}] },{ size:2, points:[{x:86,y:20},{x:72,y:32},{x:86,y:44}] },{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+22*Math.cos(Math.PI+t)),y:Math.round(42+14*Math.sin(Math.PI+t))}); return p; })() }] },
-  { label: '🖕 FAK', strokes: [
-    // Ладонь — основание кулака
-    { size:2, points:[{x:44,y:56},{x:42,y:38},{x:46,y:36},{x:50,y:38},{x:50,y:56}] },
-    { size:2, points:[{x:50,y:56},{x:50,y:40},{x:54,y:38},{x:58,y:40},{x:58,y:56}] },
-    // Средний палец — длинный, стоит вертикально
-    { size:2, points:[{x:58,y:40},{x:58,y:10},{x:70,y:10},{x:70,y:40}] },
-    // Безымянный и мизинец — короткие, зажаты
-    { size:2, points:[{x:70,y:40},{x:70,y:38},{x:74,y:36},{x:78,y:38},{x:78,y:44}] },
-    { size:2, points:[{x:78,y:44},{x:78,y:42},{x:82,y:40},{x:84,y:42},{x:84,y:50}] },
-    // Низ ладони
-    { size:2, points:[{x:44,y:56},{x:84,y:56},{x:84,y:50}] },
-    // Ноготь на среднем пальце
-    { size:2, points:[{x:60,y:12},{x:68,y:12}] }
-  ]}
 ];
 
 const TEXT_PRESETS = {
-  ru: [
-    'Привет!', 'Пока!', 'Спасибо', 'Пожалуйста',
-    'ОК', 'Ошибка!', 'Стоп', 'Вперёд',
-    'Ждите...', 'Загрузка', 'Готово!', 'Занят',
-    'Не трогай!', 'Тихо!', 'Смотри!', 'Осторожно',
-    'Я здесь', 'Иду...', 'Устал', 'Отдыхаю',
-    'Голоден', 'Хочу чай', 'Нет!', 'Да!',
-    'Помогите', 'Всё ок', 'Скучно', 'Весело!'
-  ],
-  uk: [
-    'Привіт!', 'Бувай!', 'Дякую', 'Будь ласка',
-    'Добре', 'Помилка!', 'Стоп', 'Вперед',
-    'Зачекайте', 'Завантаження', 'Готово!', 'Зайнятий',
-    'Не чіпай!', 'Тихо!', 'Дивись!', 'Обережно',
-    'Я тут', 'Іду...', 'Втомився', 'Відпочиваю',
-    'Голодний', 'Хочу каву', 'Ні!', 'Так!',
-    'Допоможіть', 'Все ок', 'Нудно', 'Весело!'
-  ],
-  en: [
-    'Hello!', 'Goodbye!', 'Thanks', 'Please',
-    'OK', 'Error!', 'Stop', 'Go!',
-    'Please wait', 'Loading...', 'Done!', 'Busy',
-    'Do not touch!', 'Be quiet!', 'Look!', 'Careful',
-    'I\'m here', 'Coming...', 'Tired', 'Resting',
-    'Hungry', 'Need coffee', 'No!', 'Yes!',
-    'Help me', 'All good', 'Bored', 'Having fun!'
-  ]
+  ru: ['Привет!','Пока!','Спасибо','Пожалуйста','ОК','Ошибка!','Стоп','Вперёд','Ждите...','Загрузка','Готово!','Занят','Не трогай!','Тихо!','Смотри!','Осторожно','Я здесь','Иду...','Устал','Отдыхаю','Голоден','Хочу чай','Нет!','Да!','Помогите','Всё ок','Скучно','Весело!'],
+  uk: ['Привіт!','Бувай!','Дякую','Будь ласка','Добре','Помилка!','Стоп','Вперед','Зачекайте','Завантаження','Готово!','Зайнятий','Не чіпай!','Тихо!','Дивись!','Обережно','Я тут','Іду...','Втомився','Відпочиваю','Голодний','Хочу каву','Ні!','Так!','Допоможіть','Все ок','Нудно','Весело!'],
+  en: ['Hello!','Goodbye!','Thanks','Please','OK','Error!','Stop','Go!','Please wait','Loading...','Done!','Busy','Do not touch!','Be quiet!','Look!','Careful','I\'m here','Coming...','Tired','Resting','Hungry','Need coffee','No!','Yes!','Help me','All good','Bored','Having fun!']
 };
 
-// ========== CANVAS ==========
 const canvas = document.getElementById('eyeCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -546,7 +937,6 @@ function displayToCanvas(dx, dy) {
   return { x: (dx / DISPLAY_W) * canvas.clientWidth, y: (dy / DISPLAY_H) * canvas.clientHeight };
 }
 
-// ========== НАВИГАЦИЯ ==========
 function pillPos() {
   const nav = document.getElementById('navTrack');
   const activeBtn = nav.querySelector('.nav-btn.active');
@@ -568,6 +958,10 @@ function switchTab(index, btn) {
   btn.classList.add('active');
   pillPos();
   if (index === 0) setTimeout(resizeCanvas, 50);
+  if (index === 1 && model3dVisible && three.initialized) {
+    setTimeout(resize3DCanvas, 50);
+    if (!three.animFrameId) animate3D();
+  }
 }
 
 function updateManualStyleUI() {
@@ -577,7 +971,7 @@ function updateManualStyleUI() {
 }
 
 function setManualEyeStyle(style) {
-  if (!['default', 'angry', 'happy', 'sad'].includes(style)) return;
+  if (!['default','angry','happy','sad'].includes(style)) return;
   manualEyeStyle = style;
   updateManualStyleUI();
   lastSentState = '';
@@ -594,62 +988,40 @@ function switchLang(lang) {
   });
 }
 
-// ========== RENDER PRESET THUMBNAIL ==========
 function renderPresetThumb(presetIndex) {
   const preset = DRAW_PRESETS[presetIndex];
   const grid = document.getElementById('drawPresetsGrid');
   const btn = document.createElement('div');
   btn.className = 'draw-preset-btn';
   btn.onclick = () => applyDrawPreset(presetIndex);
-
   const thumbCanvas = document.createElement('canvas');
-  thumbCanvas.width = 128;
-  thumbCanvas.height = 64;
+  thumbCanvas.width = 128; thumbCanvas.height = 64;
   btn.appendChild(thumbCanvas);
-
   const label = document.createElement('div');
   label.className = 'draw-preset-label';
   label.textContent = preset.label;
   btn.appendChild(label);
-
   btn.id = 'drawPreset_' + presetIndex;
   grid.appendChild(btn);
-
-  // Draw thumbnail
   const tc = thumbCanvas.getContext('2d');
-  tc.fillStyle = '#000';
-  tc.fillRect(0, 0, 128, 64);
-  tc.strokeStyle = '#00ffb3';
-  tc.lineCap = 'round';
-  tc.lineJoin = 'round';
+  tc.fillStyle = '#000'; tc.fillRect(0,0,128,64);
+  tc.strokeStyle = '#00ffb3'; tc.lineCap = 'round'; tc.lineJoin = 'round';
   preset.strokes.forEach(s => {
     if (!s.points || s.points.length < 1) return;
     tc.lineWidth = s.size * 1.2;
-    tc.beginPath();
-    tc.moveTo(s.points[0].x, s.points[0].y);
-    if (s.points.length === 1) {
-      tc.arc(s.points[0].x, s.points[0].y, s.size/2, 0, Math.PI*2);
-      tc.fill();
-    } else {
-      for (let i=1; i<s.points.length; i++) tc.lineTo(s.points[i].x, s.points[i].y);
-      tc.stroke();
-    }
+    tc.beginPath(); tc.moveTo(s.points[0].x, s.points[0].y);
+    if (s.points.length === 1) { tc.arc(s.points[0].x, s.points[0].y, s.size/2, 0, Math.PI*2); tc.fill(); }
+    else { for (let i=1; i<s.points.length; i++) tc.lineTo(s.points[i].x, s.points[i].y); tc.stroke(); }
   });
 }
 
 function applyDrawPreset(index) {
-  // Switch to draw mode
   if (mode !== 'draw') setMode('draw');
   selectedDrawPreset = index;
-  // Set strokes from preset
   strokes = JSON.parse(JSON.stringify(DRAW_PRESETS[index].strokes));
   currentStroke = null;
-  // Update selection UI
-  document.querySelectorAll('.draw-preset-btn').forEach((b,i) => {
-    b.classList.toggle('selected', i === index);
-  });
-  lastSentState = '';
-  sendUpdateToESP();
+  document.querySelectorAll('.draw-preset-btn').forEach((b,i) => b.classList.toggle('selected', i === index));
+  lastSentState = ''; sendUpdateToESP();
 }
 
 function renderTextPresets() {
@@ -673,22 +1045,13 @@ function renderTextPresets() {
 function applyTextPreset(phrase, lang, index) {
   if (mode !== 'text') setMode('text');
   removeTempInput();
-  // Replace all text objects with this phrase centered
-  textObjects = [{
-    lines: wrapText(phrase, MAX_CHARS_PER_LINE),
-    x: DISPLAY_W / 2,
-    y: DISPLAY_H / 2,
-    fontSize: TEXT_FONT_SIZE_DISP
-  }];
-  // Update selection UI
+  textObjects = [{ lines: wrapText(phrase, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP }];
   document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
   const el = document.getElementById(`textPreset_${lang}_${index}`);
   if (el) el.classList.add('selected');
-  lastSentState = '';
-  sendUpdateToESP();
+  lastSentState = ''; sendUpdateToESP();
 }
 
-// ========== ESP SYNC ==========
 function requestEyeSync() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data').then(r => r.json()).then(data => {
@@ -723,7 +1086,6 @@ function debouncedSendUpdate() {
   updateTimeout = setTimeout(sendUpdateToESP, 80);
 }
 
-// ========== РЕЖИМЫ ==========
 function setMode(newMode) {
   if (newMode === mode) return;
   let oldMode = mode;
@@ -740,7 +1102,6 @@ function setMode(newMode) {
   } else {
     toolbar.style.display = 'none';
   }
-  // Show/hide preset panels based on mode
   document.getElementById('panelPresetManual').style.display = (mode === 'manual') ? 'block' : 'none';
   document.getElementById('panelPresetDraw').style.display = (mode === 'draw') ? 'block' : 'none';
   document.getElementById('panelPresetText').style.display = (mode === 'text') ? 'block' : 'none';
@@ -752,8 +1113,7 @@ function setMode(newMode) {
   selectedDrawPreset = -1;
   document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
   document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
-  lastSentState = '';
-  sendUpdateToESP();
+  lastSentState = ''; sendUpdateToESP();
   if (newMode === "manual") setTimeout(requestEyeSync, 100);
 }
 
@@ -772,7 +1132,6 @@ function clearContent() {
   activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
 }
 
-// ========== ТЕКСТ ==========
 function wrapText(text, maxLen) {
   const words = text.split(/(\s+)/);
   const lines = []; let cur = '';
@@ -845,7 +1204,6 @@ function getTextIndexAt(dispX, dispY) {
   return -1;
 }
 
-// ========== ГЛАЗА ==========
 function isPointInsideEye(dispX, dispY, eyeDisp) {
   return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 && Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
 }
@@ -854,7 +1212,6 @@ function blinkEye(eyeDisp) {
   setTimeout(() => { eyeDisp.blink = false; lastSentState = ''; sendUpdateToESP(); }, 200);
 }
 
-// ========== СОБЫТИЯ ==========
 function getPos(evt) {
   let rect = canvas.getBoundingClientRect();
   let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -936,86 +1293,41 @@ canvas.addEventListener('touchmove', handleMove, { passive: false });
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
-// ========== ОТРИСОВКА ==========
 function drawEye(dispEye, isLeft) {
   let pos = displayToCanvas(dispEye.x, dispEye.y);
   let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
   let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
   let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
-
   const drawBrow = (centerSideDown) => {
     const browY = pos.y - h/2 - 6;
     const tilt = 5;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    if (centerSideDown) {
-      ctx.moveTo(pos.x - w/2, browY);
-      ctx.lineTo(pos.x + w/2, browY + tilt);
-    } else {
-      ctx.moveTo(pos.x - w/2, browY + tilt);
-      ctx.lineTo(pos.x + w/2, browY);
-    }
+    if (centerSideDown) { ctx.moveTo(pos.x - w/2, browY); ctx.lineTo(pos.x + w/2, browY + tilt); }
+    else { ctx.moveTo(pos.x - w/2, browY + tilt); ctx.lineTo(pos.x + w/2, browY); }
     ctx.stroke();
     ctx.beginPath();
-    if (centerSideDown) {
-      ctx.moveTo(pos.x - w/2, browY + 3);
-      ctx.lineTo(pos.x + w/2, browY + tilt + 3);
-    } else {
-      ctx.moveTo(pos.x - w/2, browY + tilt + 3);
-      ctx.lineTo(pos.x + w/2, browY + 3);
-    }
+    if (centerSideDown) { ctx.moveTo(pos.x - w/2, browY + 3); ctx.lineTo(pos.x + w/2, browY + tilt + 3); }
+    else { ctx.moveTo(pos.x - w/2, browY + tilt + 3); ctx.lineTo(pos.x + w/2, browY + 3); }
     ctx.stroke();
   };
-
   ctx.save();
-  ctx.strokeStyle = '#fff';
-  ctx.fillStyle = '#fff';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
+  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (dispEye.blink) {
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(pos.x - w/2, pos.y);
-    ctx.lineTo(pos.x + w/2, pos.y);
-    ctx.stroke();
-    ctx.restore();
-    return;
+    ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(pos.x - w/2, pos.y); ctx.lineTo(pos.x + w/2, pos.y); ctx.stroke();
+    ctx.restore(); return;
   }
-
   switch (manualEyeStyle) {
     case 'angry':
-      ctx.beginPath();
-      roundRect(ctx, pos.x - w/2, pos.y - h/2 + 2, w, h - 4, r);
-      ctx.fill();
-      // angry: inner corner of brow tilts down → left eye: right side down, right eye: left side down
-      drawBrow(isLeft);
-      break;
+      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2 + 2, w, h - 4, r); ctx.fill(); drawBrow(isLeft); break;
     case 'happy':
       ctx.lineWidth = 3;
-      // upward arc / ^-shape
-      ctx.beginPath();
-      ctx.moveTo(pos.x - w/2, pos.y + 2);
-      ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 2, pos.x + w/2, pos.y + 2);
-      ctx.stroke();
-      // second line for thickness
-      ctx.beginPath();
-      ctx.moveTo(pos.x - w/2 + 2, pos.y + 6);
-      ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 6, pos.x + w/2 - 2, pos.y + 6);
-      ctx.stroke();
-      break;
+      ctx.beginPath(); ctx.moveTo(pos.x - w/2, pos.y + 2); ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 2, pos.x + w/2, pos.y + 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pos.x - w/2 + 2, pos.y + 6); ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 6, pos.x + w/2 - 2, pos.y + 6); ctx.stroke(); break;
     case 'sad':
-      ctx.beginPath();
-      roundRect(ctx, pos.x - w/2, pos.y - h/2 + 4, w, h - 8, r);
-      ctx.fill();
-      // sad: outer corner of brow tilts down → left eye: left side down, right eye: right side down
-      drawBrow(!isLeft);
-      break;
+      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2 + 4, w, h - 8, r); ctx.fill(); drawBrow(!isLeft); break;
     default:
-      ctx.beginPath();
-      roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r);
-      ctx.fill();
-      break;
+      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r); ctx.fill(); break;
   }
   ctx.restore();
 }
@@ -1058,7 +1370,6 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
-// ========== ГРАФИКИ ==========
 function initChart() {
   const chartCtx = document.getElementById('sensorChart').getContext('2d');
   chart = new Chart(chartCtx, {
@@ -1099,7 +1410,6 @@ function toggleGraph(btn) {
 
 document.getElementById('paramSelect').addEventListener('change', updateChart);
 
-// ========== СОЕДИНЕНИЕ ==========
 function setConnected(connected) {
   isConnected = connected;
   const badge = document.getElementById('connectionBadge');
@@ -1108,12 +1418,14 @@ function setConnected(connected) {
   label.textContent = connected ? 'ONLINE' : 'OFFLINE';
 }
 
-// ========== ПОЛУЧЕНИЕ ДАННЫХ ==========
 function updateData() {
   if (!ESP_IP) return;
   fetch(ESP_IP + '/data')
     .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
+      // Feed MPU data to 3D model
+      updateModel3DFromSensor(data);
+
       if (mode === "manual" && !activeEyeDisp && !dragStarted) {
         if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
         if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
@@ -1185,34 +1497,13 @@ function formatUptime(s) {
   return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`;
 }
 
-// ========== MANUAL СТИЛЬ ГЛАЗ ==========
-function updateManualStyleUI() {
-  document.querySelectorAll('.manual-style-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.style === manualEyeStyle);
-  });
-}
-
-function setManualEyeStyle(style) {
-  if (!['default', 'angry', 'happy', 'sad'].includes(style)) return;
-  manualEyeStyle = style;
-  updateManualStyleUI();
-  lastSentState = '';
-  sendUpdateToESP();
-}
-
-// ========== ИНИЦИАЛИЗАЦИЯ ==========
 function init() {
   resizeCanvas();
   updateModeUI();
   updateManualStyleUI();
   pillPos();
-
-  // Render draw presets thumbnails
   DRAW_PRESETS.forEach((_, i) => renderPresetThumb(i));
-
-  // Render text presets
   renderTextPresets();
-
   updateData();
 }
 
