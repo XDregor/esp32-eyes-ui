@@ -123,17 +123,36 @@
   .presets-section-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 
   /* ===== DRAW PRESETS — GRID + EDITOR ===== */
-  .draw-presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .draw-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: auto;
+    gap: 6px;
+    align-items: start;
+  }
   .draw-preset-btn {
     background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    cursor: pointer; transition: all 0.18s; outline: none; padding: 4px 4px 4px;
-    display: block; overflow: hidden;
+    cursor: pointer; transition: border-color 0.18s, background 0.18s; outline: none; padding: 4px 4px 3px;
+    display: block; overflow: hidden; width: 100%;
     -webkit-tap-highlight-color: transparent; position: relative;
+    /* critical: self-contained block, no flex/grid influence on children */
+    contain: layout style;
   }
   .draw-preset-btn:hover { border-color: rgba(0,255,179,0.3); background: rgba(0,255,179,0.05); }
   .draw-preset-btn.selected { border-color: rgba(0,255,179,0.6); background: var(--accent-dim); box-shadow: 0 0 12px rgba(0,255,179,0.1) inset; }
-  .draw-preset-btn canvas { width: 100% !important; height: auto !important; aspect-ratio: 2 / 1; display: block; border-radius: 4px; background: #000; max-width: 100%; }
-  .draw-preset-btn { contain: layout; }
+  /* Both <img> and <canvas> thumbs — forced consistent sizing */
+  .draw-preset-btn img,
+  .draw-preset-btn canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 1;
+    border-radius: 4px;
+    background: #000;
+    /* prevent intrinsic-size blowout */
+    min-height: 0;
+    max-width: 100%;
+  }
   .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding: 3px 2px 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-align: center; }
   .draw-preset-btn.selected .draw-preset-label { color: var(--accent); }
 
@@ -1189,8 +1208,10 @@ function makeThumbCanvas(strokes) {
   off.width = 128; off.height = 64;
   renderStrokesToCanvas(off, strokes, '#00ffb3');
   const img = document.createElement('img');
+  // Set intrinsic size attrs so browser reserves correct space before paint (no reflow)
+  img.width = 128;
+  img.height = 64;
   img.src = off.toDataURL();
-  img.style.cssText = 'width:100%;height:auto;aspect-ratio:2/1;display:block;border-radius:4px;background:#000;';
   return img;
 }
 
