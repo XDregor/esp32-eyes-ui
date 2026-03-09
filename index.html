@@ -156,17 +156,21 @@
   .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding: 3px 2px 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-align: center; }
   .draw-preset-btn.selected .draw-preset-label { color: var(--accent); }
 
-  /* Delete icon on preset thumb */
-  .preset-del-btn {
-    position: absolute; top: 4px; right: 4px; z-index: 10;
+  /* Delete + Edit icons on preset thumb */
+  .preset-del-btn, .preset-edit-btn {
+    position: absolute; z-index: 10;
     width: 18px; height: 18px; border-radius: 50%;
-    background: rgba(255,77,109,0.85); border: none; cursor: pointer;
+    border: none; cursor: pointer;
     display: none; align-items: center; justify-content: center;
     color: #fff; font-size: 10px; line-height: 1; transition: 0.15s;
     box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   }
+  .preset-del-btn { top: 4px; right: 4px; background: rgba(255,77,109,0.85); }
   .preset-del-btn:hover { background: var(--red); transform: scale(1.15); }
-  .draw-preset-btn:hover .preset-del-btn { display: flex; }
+  .preset-edit-btn { top: 4px; left: 4px; background: rgba(0,255,179,0.25); }
+  .preset-edit-btn:hover { background: rgba(0,255,179,0.7); transform: scale(1.15); }
+  .draw-preset-btn:hover .preset-del-btn,
+  .draw-preset-btn:hover .preset-edit-btn { display: flex; }
 
   /* Add preset button */
   .draw-preset-add {
@@ -866,7 +870,10 @@ function renderDrawPresetsGrid() {
     const btn = document.createElement('div');
     btn.className = 'draw-preset-btn';
     btn.id = 'dp_' + preset.id;
-    btn.onclick = (e) => { if (!e.target.closest('.preset-del-btn')) applyCloudDrawPreset(preset); };
+    btn.onclick = (e) => {
+      if (!e.target.closest('.preset-del-btn') && !e.target.closest('.preset-edit-btn'))
+        applyCloudDrawPreset(preset);
+    };
 
     btn.appendChild(makeThumbCanvas(preset.strokes || []));
 
@@ -875,6 +882,15 @@ function renderDrawPresetsGrid() {
     label.textContent = preset.name || 'UNTITLED';
     btn.appendChild(label);
 
+    // Edit button (pencil) — top left
+    const editBtn = document.createElement('button');
+    editBtn.className = 'preset-edit-btn';
+    editBtn.title = 'Редактировать';
+    editBtn.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    editBtn.onclick = (e) => { e.stopPropagation(); applyCloudDrawPreset(preset); openDrawEditorExisting(preset); };
+    btn.appendChild(editBtn);
+
+    // Delete button — top right
     const delBtn = document.createElement('button');
     delBtn.className = 'preset-del-btn';
     delBtn.title = 'Удалить';
@@ -897,13 +913,8 @@ function applyStaticDrawPreset(preset, index) {
   document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
   const el = document.getElementById('dp_static_' + index);
   if (el) el.classList.add('selected');
-  // Open editor pre-filled with static data (as new — save will create cloud copy)
-  openDrawEditorNew();
-  editorStrokes = JSON.parse(JSON.stringify(preset.strokes));
-  document.getElementById('drawEditorNameInput').value = preset.label;
-  document.getElementById('editorStatus').textContent = 'BUILT-IN';
-  document.getElementById('editorStatus').className = 'editor-status saved';
-  setTimeout(redrawEditorCanvas, 60);
+  // Close editor — static presets are read-only
+  closeDrawEditor();
   lastSentState = ''; sendUpdateToESP();
 }
 
@@ -930,10 +941,8 @@ function applyCloudDrawPreset(preset) {
   document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
   const el = document.getElementById('dp_' + preset.id);
   if (el) el.classList.add('selected');
-
-  // Also open editor so user can modify and re-save
-  openDrawEditorExisting(preset);
-
+  // Close editor on simple select — editor opens only via pencil icon
+  closeDrawEditor();
   lastSentState = ''; sendUpdateToESP();
 }
 
