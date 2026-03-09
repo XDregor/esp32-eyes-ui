@@ -474,8 +474,7 @@ const EYE_RADIUS_DISP = 4;
 const MIN_GAP_DISP = 5;
 
 // STL from Google Drive — direct download URL
-const STL_FILE_ID = '1tD4cwgkCTKJAwiBckLJHxrqs9s7Mod1U';
-const STL_URL = `https://corsproxy.io/?url=https://drive.google.com/uc?export=download%26id=${STL_FILE_ID}`;
+const STL_URL = './MONSTRIX_head.stl';
 
 // ========== 3D MODEL STATE ==========
 let three = {
@@ -665,9 +664,9 @@ function loadSTLModel() {
   };
 
   xhr.onerror = () => {
-    // Fallback: try without proxy
-    setModelOverlay('Proxy failed, trying direct...', -1);
-    loadSTLFallback();
+    setModelOverlay('Файл не найден. Проверь MONSTRIX_head.stl рядом с HTML', -2);
+    setModel3dStatus('NOT FOUND', false);
+    setTimeout(showPlaceholderModel, 2000);
   };
 
   xhr.send();
