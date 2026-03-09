@@ -753,35 +753,37 @@ function showPlaceholderModel() {
 
 // ========== COMPLEMENTARY FILTER ==========
 function updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt) {
-  if (dt <= 0 || dt > 0.5) return; // skip bad dt
+  // Clamp dt to safe range
+  const safeDt = Math.max(0.001, Math.min(dt, 0.2));
 
   // Normalize accelerometer
   const accMag = Math.sqrt(ax*ax + ay*ay + az*az);
-  if (accMag < 0.1) return;
+  if (accMag < 0.5) return; // sensor dead or in freefall, skip
   const axN = ax / accMag;
   const ayN = ay / accMag;
   const azN = az / accMag;
 
-  // Accel-derived angles (MPU6050 horizontal: Z points up)
-  // pitch = tilt around X axis, roll = tilt around Y axis
-  const accelPitch = Math.atan2(ayN, azN);
-  const accelRoll  = Math.atan2(-axN, azN);
+  // Accel-derived angles (MPU6050 horizontal: Z points up toward ceiling)
+  // pitch = forward/back tilt, roll = left/right tilt
+  const accelPitch = Math.atan2(-axN, azN);
+  const accelRoll  = Math.atan2( ayN, azN);
 
-  // Gyro integration (rad/s → rad)
-  // MPU6050 data from ESP: gyro_x, gyro_y, gyro_z in rad/s
-  cf.pitch = cf.alpha * (cf.pitch + gx * dt) + (1 - cf.alpha) * accelPitch;
-  cf.roll  = cf.alpha * (cf.roll  + gy * dt) + (1 - cf.alpha) * accelRoll;
-  cf.yaw  += gz * dt; // pure gyro integration for yaw
+  // Complementary filter: trust gyro short-term, accel long-term
+  cf.pitch = cf.alpha * (cf.pitch + gy * safeDt) + (1 - cf.alpha) * accelPitch;
+  cf.roll  = cf.alpha * (cf.roll  + gx * safeDt) + (1 - cf.alpha) * accelRoll;
+  cf.yaw  += gz * safeDt; // pure gyro integration for yaw (no accel correction)
 }
 
 function applyOrientationToModel() {
   if (!three.mesh) return;
 
-  // Base rotation: flip model so Y-up = real-world Z-up
-  // Then apply complementary filter angles
+  // MPU6050 horizontal (Z up) → Three.js Y up
+  // Base: rotate -90° on X to stand model upright
+  // Then add sensor angles on top
+  three.mesh.rotation.order = 'YXZ';
   three.mesh.rotation.x = -Math.PI / 2 + cf.pitch;
-  three.mesh.rotation.z = cf.roll;
   three.mesh.rotation.y = cf.yaw;
+  three.mesh.rotation.z = -cf.roll;
 
   // Update HUD
   const toDeg = r => Math.round(r * 180 / Math.PI);
@@ -795,7 +797,6 @@ function resetModelOrientation() {
 
 // ========== UPDATE FROM SENSOR DATA ==========
 function updateModel3DFromSensor(data) {
-  if (!model3dVisible || !three.loaded) return;
   if (!data.mpu_ok) return;
 
   const ax = data.accel_x ?? 0;
@@ -806,11 +807,16 @@ function updateModel3DFromSensor(data) {
   const gz = data.gyro_z ?? 0;
 
   const now = performance.now() / 1000;
-  const dt = cf.lastTime ? (now - cf.lastTime) : 0;
+  // On first call use small dt to let accel initialize angles cleanly
+  const dt = cf.lastTime ? (now - cf.lastTime) : 0.001;
   cf.lastTime = now;
 
   updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt);
-  applyOrientationToModel();
+
+  // Apply to model if open and loaded
+  if (model3dVisible && three.loaded) {
+    applyOrientationToModel();
+  }
 
   lastMpuData = { ax, ay, az, gx, gy, gz };
 }
@@ -1506,7 +1512,7 @@ function init() {
   updateData();
 }
 
-setInterval(updateData, 1000);
+setInterval(updateData, 200);
 window.onload = init;
 window.addEventListener('resize', pillPos);
 draw();
