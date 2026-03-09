@@ -1151,8 +1151,9 @@ async function saveDrawPreset() {
   // Serialize strokes — remove 'erase' strokes since on ESP they won't make sense
   // We flatten erase into the geometry by only saving visible pixels via final raster approach
   // For simplicity we store strokes as-is (including erase flags) — rendering handles it
+  // Firestore does not support nested arrays — store points as {x, y} objects
   const strokesToSave = editorStrokes.map(s => ({
-    points: s.points.map(p => [Math.round(p.x), Math.round(p.y)]),
+    points: s.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
     size: s.size,
     erase: s.erase || false
   }));
