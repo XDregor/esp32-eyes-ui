@@ -172,20 +172,29 @@
   .draw-preset-btn:hover .preset-del-btn,
   .draw-preset-btn:hover .preset-edit-btn { display: flex; }
 
-  /* Add preset button */
+  /* Add preset button — identical box model to .draw-preset-btn */
   .draw-preset-add {
-    background: var(--surface2); border: 2px dashed rgba(0,255,179,0.25); border-radius: var(--radius-sm);
+    background: var(--surface2); border: 1px dashed rgba(0,255,179,0.25); border-radius: var(--radius-sm);
     cursor: pointer; transition: all 0.18s; outline: none;
     display: block; color: var(--text-dim); -webkit-tap-highlight-color: transparent;
     contain: layout style; width: 100%;
+    padding: 4px 4px 3px;
   }
-  /* inner wrapper matches the img/canvas aspect-ratio so button is same height as .draw-preset-btn */
+  /* inner uses same aspect-ratio as the img inside .draw-preset-btn */
   .draw-preset-add-inner {
-    aspect-ratio: 2/1;
+    aspect-ratio: 2 / 1;
+    width: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    padding: 4px;
+    border-radius: 4px;
+  }
+  /* label row matches .draw-preset-label height exactly */
+  .draw-preset-add-label-row {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 2px 1px; display: block; text-align: center; width: 100%;
+    color: var(--text-dim);
   }
   .draw-preset-add:hover { border-color: rgba(0,255,179,0.5); background: rgba(0,255,179,0.05); color: var(--accent); }
+  .draw-preset-add:hover .draw-preset-add-label-row { color: var(--accent); }
   .draw-preset-add svg { transition: transform 0.2s; }
   .draw-preset-add:hover svg { transform: rotate(90deg); }
   .draw-preset-add-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -926,8 +935,8 @@ function appendAddDrawButton(grid) {
   addBtn.innerHTML = `
     <div class="draw-preset-add-inner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="draw-preset-add-label">NEW</span>
     </div>
+    <span class="draw-preset-add-label-row">NEW</span>
   `;
   grid.appendChild(addBtn);
 }
