@@ -174,44 +174,73 @@
   }
   #leaseTakeBtn:hover { background: rgba(255,200,0,0.22); border-color: rgba(255,200,0,0.7); }
 
-  /* ===== CONTROL REQUEST MODAL (shown to controller) ===== */
+  /* ===== CONTROL REQUEST MODAL ===== */
   #requestModal {
     position: fixed; inset: 0; z-index: 2100;
-    background: rgba(10,10,15,0.8); backdrop-filter: blur(10px);
+    background: rgba(10,10,15,0.75); backdrop-filter: blur(12px);
     display: none; align-items: center; justify-content: center; padding: 20px;
   }
   #requestModal.show { display: flex; animation: fadeIn 0.2s ease; }
   .req-modal {
-    background: var(--surface); border: 1px solid rgba(255,200,0,0.3);
-    border-radius: 20px; width: 100%; max-width: 300px; overflow: hidden;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,200,0,0.06);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); width: 100%; max-width: 300px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
     animation: slideUp 0.25s cubic-bezier(.4,0,.2,1);
   }
+  /* accent line at top */
+  .req-modal::before {
+    content: ''; display: block; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,255,179,0.6), transparent);
+  }
   .req-modal-header {
-    padding: 16px 16px 0;
-    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 0;
+    display: flex; align-items: center; gap: 8px;
   }
-  .req-modal-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #ffc800; }
-  .req-modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
-  .req-modal-icon { font-size: 36px; line-height: 1; }
-  .req-modal-who { font-size: 15px; font-weight: 600; color: var(--text); }
-  .req-modal-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
-  .req-timer-ring { position: relative; width: 48px; height: 48px; }
+  .req-modal-title {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase;
+  }
+  .req-modal-body {
+    padding: 16px 20px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  }
+  /* who is requesting */
+  .req-who-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px; width: 100%;
+  }
+  .req-who-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-dim); border: 1px solid rgba(0,255,179,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent);
+  }
+  .req-who-info { text-align: left; min-width: 0; }
+  .req-who-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .req-who-sub { font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.06em; margin-top: 1px; }
+  /* timer */
+  .req-timer-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .req-timer-ring { position: relative; width: 36px; height: 36px; flex-shrink: 0; }
   .req-timer-ring svg { transform: rotate(-90deg); }
-  .req-timer-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 3; }
-  .req-timer-fill  { fill: none; stroke: #ffc800; stroke-width: 3; stroke-linecap: round;
-    transition: stroke-dashoffset 1s linear; }
-  .req-timer-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    font-family: var(--mono); font-size: 14px; font-weight: 700; color: #ffc800; }
-  .req-modal-actions { display: flex; gap: 8px; width: 100%; }
+  .req-timer-track { fill: none; stroke: var(--surface2); stroke-width: 3; }
+  .req-timer-fill { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .req-timer-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); }
+  .req-timer-text { font-size: 12px; color: var(--text-muted); line-height: 1.4; text-align: left; }
+  /* divider */
+  .req-divider { width: 100%; height: 1px; background: var(--border); margin: 2px 0; }
+  /* actions */
+  .req-modal-actions { display: flex; gap: 6px; width: 100%; }
   .req-btn {
-    flex: 1; border: none; border-radius: 40px; padding: 10px; font-family: var(--mono);
-    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; outline: none; transition: all 0.18s;
+    flex: 1; border-radius: 40px; padding: 9px 8px;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; cursor: pointer; outline: none; transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
   }
-  .req-btn-accept { background: rgba(0,255,179,0.15); border: 1px solid rgba(0,255,179,0.4); color: var(--accent); }
-  .req-btn-accept:hover { background: rgba(0,255,179,0.25); }
-  .req-btn-reject { background: var(--red-dim); border: 1px solid rgba(255,77,109,0.3); color: var(--red); }
-  .req-btn-reject:hover { background: rgba(255,77,109,0.2); }
+  .req-btn-accept { background: var(--accent-dim); border: 1px solid rgba(0,255,179,0.35); color: var(--accent); }
+  .req-btn-accept:hover { background: rgba(0,255,179,0.2); border-color: rgba(0,255,179,0.6); box-shadow: 0 0 14px rgba(0,255,179,0.12); }
+  .req-btn-reject { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+  .req-btn-reject:hover { background: var(--red-dim); border-color: rgba(255,77,109,0.3); color: var(--red); }
 
   /* TAKE CONTROL button cooldown state */
   #leaseTakeBtn.cooldown { opacity: 0.45; pointer-events: none; }
@@ -627,23 +656,38 @@
 <div id="requestModal">
   <div class="req-modal">
     <div class="req-modal-header">
+      <div class="conn-dot" style="background:rgba(0,255,179,0.5);box-shadow:0 0 6px rgba(0,255,179,0.4);flex-shrink:0;"></div>
       <span class="req-modal-title">ЗАПРОС УПРАВЛЕНИЯ</span>
     </div>
     <div class="req-modal-body">
-      <div class="req-modal-icon">🎮</div>
-      <div class="req-modal-who" id="reqWhoName">—</div>
-      <div class="req-modal-desc">хочет получить управление устройством</div>
-      <div class="req-timer-ring">
-        <svg width="48" height="48" viewBox="0 0 48 48">
-          <circle class="req-timer-track" cx="24" cy="24" r="21"/>
-          <circle class="req-timer-fill" id="reqTimerArc" cx="24" cy="24" r="21"
-            stroke-dasharray="132" stroke-dashoffset="0"/>
-        </svg>
-        <div class="req-timer-label" id="reqTimerLabel">30</div>
+      <div class="req-who-row">
+        <div class="req-who-avatar" id="reqWhoAvatar">?</div>
+        <div class="req-who-info">
+          <div class="req-who-name" id="reqWhoName">—</div>
+          <div class="req-who-sub">ЗАПРАШИВАЕТ УПРАВЛЕНИЕ</div>
+        </div>
       </div>
+      <div class="req-timer-row">
+        <div class="req-timer-ring">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle class="req-timer-track" cx="18" cy="18" r="15"/>
+            <circle class="req-timer-fill" id="reqTimerArc" cx="18" cy="18" r="15"
+              stroke-dasharray="94" stroke-dashoffset="0"/>
+          </svg>
+          <div class="req-timer-label" id="reqTimerLabel">30</div>
+        </div>
+        <div class="req-timer-text">Авто-отклонение<br>через <strong id="reqTimerSec">30</strong> сек</div>
+      </div>
+      <div class="req-divider"></div>
       <div class="req-modal-actions">
-        <button class="req-btn req-btn-reject" onclick="respondToRequest('rejected')">ОТКЛОНИТЬ</button>
-        <button class="req-btn req-btn-accept" onclick="respondToRequest('accepted')">ПЕРЕДАТЬ</button>
+        <button class="req-btn req-btn-reject" onclick="respondToRequest('rejected')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ОТКЛОНИТЬ
+        </button>
+        <button class="req-btn req-btn-accept" onclick="respondToRequest('accepted')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          ПЕРЕДАТЬ
+        </button>
       </div>
     </div>
   </div>
@@ -959,7 +1003,6 @@
 
   window.updateLeaseDevice = (deviceId) => {
     if (!deviceId || window._lastLeaseDeviceId === deviceId) return;
-    console.log('[LEASE] deviceId received:', deviceId);
     window._lastLeaseDeviceId = deviceId;
     LEASE_DOC   = doc(db, 'control', deviceId);
     REQUEST_COL = collection(db, 'control', deviceId, 'requests');
@@ -1004,18 +1047,14 @@
   // ---- Subscribe to lease ----
   function subscribeLease(uid, displayName) {
     if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
-    console.log('[LEASE] subscribeLease on', LEASE_DOC.path);
     leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
       const now = Date.now();
-      console.log('[LEASE] snapshot: exists=', snap.exists(), snap.exists() ? snap.data() : null);
       if (!snap.exists() || snap.data().expiresAt < now) {
-        console.log('[LEASE] free — acquiring for', uid);
         await acquireLease(uid, displayName).catch(console.error);
         return;
       }
       leaseState = snap.data();
       const isMine = leaseState.uid === uid && leaseState.sessionId === SESSION_ID;
-      console.log('[LEASE] isMine=', isMine, 'owner=', leaseState.uid, 'me=', uid, 'sessionMatch=', leaseState.sessionId === SESSION_ID);
       window.isController = isMine;
       window.onLeaseChange(isMine, leaseState);
     });
@@ -1031,13 +1070,10 @@
   function subscribeRequests(uid) {
     if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
     if (!REQUEST_COL) return;
-    console.log('[REQUESTS] subscribing, isController=', window.isController);
     requestsUnsub = onSnapshot(REQUEST_COL, (snap) => {
-      console.log('[REQUESTS] snapshot, changes:', snap.docChanges().length, 'isController=', window.isController);
       snap.docChanges().forEach(change => {
         const reqData = change.doc.data();
         const reqUid  = change.doc.id;
-        console.log('[REQUESTS] change:', change.type, 'reqUid=', reqUid, 'myUid=', uid, 'reqSession=', reqData.sessionId, 'mySession=', SESSION_ID, 'status=', reqData.status);
 
         // My own request — same uid AND same sessionId (this tab sent it)
         if (reqUid === uid && reqData.sessionId === SESSION_ID) {
@@ -1052,7 +1088,6 @@
         }
 
         if ((change.type === 'added' || change.type === 'modified') && reqData.status === 'pending') {
-          console.log('[REQUESTS] pending request detected, isController=', window.isController, '— showing modal');
           // Show immediately — isController is already true per the log above
           showRequestModal(reqUid, reqData);
           return;
@@ -1112,7 +1147,6 @@
 
   function showRequestModal(reqUid, reqData) {
     pendingReqId = reqUid;
-    console.log('[MODAL] showRequestModal called, reqUid=', reqUid, 'reqData=', reqData);
     window.onShowRequestModal({ ...reqData, uid: reqUid });
     // Auto-reject after REQUEST_TTL
     if (pendingReqTimer) clearTimeout(pendingReqTimer);
@@ -1436,20 +1470,26 @@ const REQUEST_TTL_UI = 30; // seconds, must match Firebase module constant
 let reqTimerInterval = null;
 
 window.onShowRequestModal = function(reqData) {
-  console.log('[MODAL] onShowRequestModal called, data=', reqData);
   window._pendingReqUid = reqData.uid;
-  document.getElementById('reqWhoName').textContent = reqData.displayName || '—';
+  const name = reqData.displayName || '—';
+  document.getElementById('reqWhoName').textContent = name;
+  document.getElementById('reqWhoAvatar').textContent = name.trim()[0]?.toUpperCase() || '?';
   document.getElementById('requestModal').classList.add('show');
-  // Start countdown
+  // Countdown — circumference = 2π×15 ≈ 94
   let remaining = REQUEST_TTL_UI;
   const arc   = document.getElementById('reqTimerArc');
   const label = document.getElementById('reqTimerLabel');
-  const circumference = 132;
-  arc.style.stroke = '#ffc800';
+  const secEl = document.getElementById('reqTimerSec');
+  const circumference = 94;
+  arc.style.stroke = 'var(--accent)';
+  arc.style.strokeDashoffset = '0';
+  label.textContent = remaining;
+  if (secEl) secEl.textContent = remaining;
   if (reqTimerInterval) clearInterval(reqTimerInterval);
   reqTimerInterval = setInterval(() => {
     remaining--;
     label.textContent = remaining;
+    if (secEl) secEl.textContent = remaining;
     arc.style.strokeDashoffset = circumference * (1 - remaining / REQUEST_TTL_UI);
     if (remaining <= 10) arc.style.stroke = 'var(--red)';
     if (remaining <= 0) { clearInterval(reqTimerInterval); reqTimerInterval = null; }
