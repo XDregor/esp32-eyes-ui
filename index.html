@@ -1037,30 +1037,27 @@
       snap.docChanges().forEach(change => {
         const reqData = change.doc.data();
         const reqUid  = change.doc.id;
+        console.log('[REQUESTS] change:', change.type, 'reqUid=', reqUid, 'myUid=', uid, 'reqSession=', reqData.sessionId, 'mySession=', SESSION_ID, 'status=', reqData.status);
 
-        // My own request — watch status changes only (not 'added' which is the initial write)
-        if (reqUid === uid) {
+        // My own request — same uid AND same sessionId (this tab sent it)
+        if (reqUid === uid && reqData.sessionId === SESSION_ID) {
           if (change.type === 'modified') window.onMyRequestStatusChange(reqData);
           return;
         }
 
-        // Someone else's request — only the controller handles these
-        // Note: check isController lazily here so we catch requests that arrive
-        // while lease is still being acquired
+        // Someone else's request — controller handles
         if (change.type === 'removed') {
           if (pendingReqId === reqUid) hideRequestModal();
           return;
         }
-        // 'added' covers: controller was offline when request sent (catches up on connect)
-        // 'modified' covers: re-sent request after timeout
+
         if ((change.type === 'added' || change.type === 'modified') && reqData.status === 'pending') {
-          // Defer check slightly so isController has time to settle after lease
-          setTimeout(() => {
-            if (window.isController) showRequestModal(reqUid, reqData);
-          }, 300);
+          console.log('[REQUESTS] pending request detected, isController=', window.isController, '— showing modal');
+          // Show immediately — isController is already true per the log above
+          showRequestModal(reqUid, reqData);
           return;
         }
-        // Request resolved (accepted/rejected/timeout) — hide modal if we're showing it
+
         if (reqData.status !== 'pending' && pendingReqId === reqUid) {
           hideRequestModal();
         }
@@ -1084,10 +1081,12 @@
   window.tryTakeLease = async () => {
     const user = window.currentUser;
     if (!user || !REQUEST_COL) return;
+    // Key = uid so only one pending request per user account, but sessionId distinguishes tabs
     const reqDoc = doc(REQUEST_COL, user.uid);
     const now = Date.now();
     await setDoc(reqDoc, {
       uid: user.uid,
+      sessionId: SESSION_ID,
       displayName: user.displayName || user.email,
       status: 'pending',
       requestedAt: now,
