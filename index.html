@@ -174,6 +174,49 @@
   }
   #leaseTakeBtn:hover { background: rgba(255,200,0,0.22); border-color: rgba(255,200,0,0.7); }
 
+  /* ===== CONTROL REQUEST MODAL (shown to controller) ===== */
+  #requestModal {
+    position: fixed; inset: 0; z-index: 2100;
+    background: rgba(10,10,15,0.8); backdrop-filter: blur(10px);
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  #requestModal.show { display: flex; animation: fadeIn 0.2s ease; }
+  .req-modal {
+    background: var(--surface); border: 1px solid rgba(255,200,0,0.3);
+    border-radius: 20px; width: 100%; max-width: 300px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,200,0,0.06);
+    animation: slideUp 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  .req-modal-header {
+    padding: 16px 16px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .req-modal-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #ffc800; }
+  .req-modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  .req-modal-icon { font-size: 36px; line-height: 1; }
+  .req-modal-who { font-size: 15px; font-weight: 600; color: var(--text); }
+  .req-modal-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .req-timer-ring { position: relative; width: 48px; height: 48px; }
+  .req-timer-ring svg { transform: rotate(-90deg); }
+  .req-timer-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 3; }
+  .req-timer-fill  { fill: none; stroke: #ffc800; stroke-width: 3; stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear; }
+  .req-timer-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 14px; font-weight: 700; color: #ffc800; }
+  .req-modal-actions { display: flex; gap: 8px; width: 100%; }
+  .req-btn {
+    flex: 1; border: none; border-radius: 40px; padding: 10px; font-family: var(--mono);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; outline: none; transition: all 0.18s;
+  }
+  .req-btn-accept { background: rgba(0,255,179,0.15); border: 1px solid rgba(0,255,179,0.4); color: var(--accent); }
+  .req-btn-accept:hover { background: rgba(0,255,179,0.25); }
+  .req-btn-reject { background: var(--red-dim); border: 1px solid rgba(255,77,109,0.3); color: var(--red); }
+  .req-btn-reject:hover { background: rgba(255,77,109,0.2); }
+
+  /* TAKE CONTROL button cooldown state */
+  #leaseTakeBtn.cooldown { opacity: 0.45; pointer-events: none; }
+  #leaseTakeBtn .take-timer { font-size: 9px; opacity: 0.8; }
+
   /* Read-only overlay on canvas area */
   #readonlyOverlay {
     position: absolute; inset: 0; z-index: 50; display: none;
@@ -580,6 +623,32 @@
   <button id="leaseTakeBtn" style="display:none" onclick="window.tryTakeLease && window.tryTakeLease()">TAKE CONTROL</button>
 </div>
 
+<!-- Control request modal (shown to controller) -->
+<div id="requestModal">
+  <div class="req-modal">
+    <div class="req-modal-header">
+      <span class="req-modal-title">ЗАПРОС УПРАВЛЕНИЯ</span>
+    </div>
+    <div class="req-modal-body">
+      <div class="req-modal-icon">🎮</div>
+      <div class="req-modal-who" id="reqWhoName">—</div>
+      <div class="req-modal-desc">хочет получить управление устройством</div>
+      <div class="req-timer-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle class="req-timer-track" cx="24" cy="24" r="21"/>
+          <circle class="req-timer-fill" id="reqTimerArc" cx="24" cy="24" r="21"
+            stroke-dasharray="132" stroke-dashoffset="0"/>
+        </svg>
+        <div class="req-timer-label" id="reqTimerLabel">30</div>
+      </div>
+      <div class="req-modal-actions">
+        <button class="req-btn req-btn-reject" onclick="respondToRequest('rejected')">ОТКЛОНИТЬ</button>
+        <button class="req-btn req-btn-accept" onclick="respondToRequest('accepted')">ПЕРЕДАТЬ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toastContainer"></div>
 
 <!-- User dropdown menu -->
@@ -868,72 +937,73 @@
   let textUnsub  = null;
 
   // ================================================================
-  // CONTROL LEASE SYSTEM
+  // CONTROL LEASE + REQUEST SYSTEM  (per-device)
   // ================================================================
-  // Lease doc is per-device — deviceId is fetched from ESP /data response
-  // and stored in window.currentDeviceId once the first poll arrives
-  let LEASE_DOC = doc(db, 'control', 'unknown');  // updated once deviceId is known
+  // Paths:  control/{deviceId}             — lease doc
+  //         control/{deviceId}/requests/{requesterUid} — request doc
+
+  let LEASE_DOC     = doc(db, 'control', 'unknown');
+  let REQUEST_COL   = null; // collection ref, set when deviceId known
+  const LEASE_TTL_MS  = 25000;
+  const HEARTBEAT_MS  = 10000;
+  const REQUEST_TTL   = 30;   // seconds controller has to respond
+  const COOLDOWN_MS   = 60000; // requester cooldown after request
+  const SESSION_ID    = crypto.randomUUID();
+
+  let leaseUnsub      = null;
+  let requestsUnsub   = null;
+  let heartbeatTimer  = null;
+  let leaseState      = null;
+  let pendingReqId    = null;  // uid of pending requester (controller side)
+  let pendingReqTimer = null;
 
   window.updateLeaseDevice = (deviceId) => {
     if (!deviceId || window._lastLeaseDeviceId === deviceId) return;
     window._lastLeaseDeviceId = deviceId;
-    LEASE_DOC = doc(db, 'control', deviceId);
-    // Re-subscribe with correct device doc if user is signed in
+    LEASE_DOC   = doc(db, 'control', deviceId);
+    REQUEST_COL = collection(db, 'control', deviceId, 'requests');
     const user = window.currentUser;
     if (user) {
       subscribeLease(user.uid, user.displayName || user.email);
+      subscribeRequests(user.uid);
     }
   };
-  const LEASE_TTL_MS   = 25000;   // lease expires after 25s without heartbeat
-  const HEARTBEAT_MS   = 10000;   // send heartbeat every 10s
-  const SESSION_ID     = crypto.randomUUID();
 
-  let leaseUnsub     = null;
-  let heartbeatTimer = null;
-  let leaseState     = null; // current lease doc data
-
-  // Acquire or refresh lease
+  // ---- Lease acquire / release ----
   async function acquireLease(uid, displayName) {
     const now = Date.now();
     await setDoc(LEASE_DOC, {
-      uid,
-      sessionId: SESSION_ID,
+      uid, sessionId: SESSION_ID,
       displayName: displayName || uid.slice(0, 8),
-      acquiredAt: now,
-      expiresAt:  now + LEASE_TTL_MS
+      acquiredAt: now, expiresAt: now + LEASE_TTL_MS
     });
   }
 
-  // Release lease only if we own it
   async function releaseLease(uid) {
     try {
       const snap = await getDoc(LEASE_DOC);
-      if (snap.exists() && snap.data().uid === uid && snap.data().sessionId === SESSION_ID) {
+      if (snap.exists() && snap.data().uid === uid && snap.data().sessionId === SESSION_ID)
         await deleteDoc(LEASE_DOC);
-      }
-    } catch(e) { /* ignore */ }
+    } catch(e) {}
   }
 
-  // Heartbeat — keep lease alive while this tab is open
+  // ---- Heartbeat ----
   function startHeartbeat(uid, displayName) {
     stopHeartbeat();
     heartbeatTimer = setInterval(() => {
-      // Only renew if we are the controller
       if (window.isController) acquireLease(uid, displayName).catch(console.error);
     }, HEARTBEAT_MS);
   }
-
   function stopHeartbeat() {
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
   }
 
-  // Subscribe to lease document
+  // ---- Subscribe to lease ----
   function subscribeLease(uid, displayName) {
     if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
     leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
       const now = Date.now();
       if (!snap.exists() || snap.data().expiresAt < now) {
-        // Lease is free — grab it
         await acquireLease(uid, displayName).catch(console.error);
         return;
       }
@@ -950,20 +1020,95 @@
     window.isController = false;
   }
 
-  // Exposed: try to forcibly take control
+  // ---- Subscribe to incoming requests (controller watches this) ----
+  function subscribeRequests(uid) {
+    if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
+    if (!REQUEST_COL) return;
+    requestsUnsub = onSnapshot(REQUEST_COL, (snap) => {
+      snap.docChanges().forEach(change => {
+        const reqData = change.doc.data();
+        const reqUid  = change.doc.id;
+        if (reqUid === uid) {
+          // My own request — watch status
+          window.onMyRequestStatusChange(reqData);
+          return;
+        }
+        if (!window.isController) return;
+        if (change.type === 'added' && reqData.status === 'pending') {
+          // New request for control — show modal
+          showRequestModal(reqUid, reqData);
+        }
+        if (change.type === 'modified' && reqData.status !== 'pending') {
+          // Request resolved elsewhere — hide modal
+          if (pendingReqId === reqUid) hideRequestModal();
+        }
+      });
+    });
+  }
+
+  // ---- Send a request for control ----
   window.tryTakeLease = async () => {
     const user = window.currentUser;
-    if (!user) return;
-    await acquireLease(user.uid, user.displayName || user.email).catch(console.error);
+    if (!user || !REQUEST_COL) return;
+    const reqDoc = doc(REQUEST_COL, user.uid);
+    const now = Date.now();
+    await setDoc(reqDoc, {
+      uid: user.uid,
+      displayName: user.displayName || user.email,
+      status: 'pending',
+      requestedAt: now,
+      expiresAt: now + REQUEST_TTL * 1000
+    }).catch(console.error);
+    window.onRequestSent();
   };
 
-  // Release on page close/refresh
+  // ---- Controller responds to request ----
+  window.respondToControlRequest = async (requesterUid, accept) => {
+    if (!REQUEST_COL) return;
+    const reqDoc = doc(REQUEST_COL, requesterUid);
+    if (accept) {
+      // Mark accepted first, then release lease — requester will grab it
+      await updateDoc(reqDoc, { status: 'accepted' }).catch(console.error);
+      const user = window.currentUser;
+      if (user) await releaseLease(user.uid).catch(console.error);
+    } else {
+      await updateDoc(reqDoc, { status: 'rejected' }).catch(console.error);
+    }
+    hideRequestModal();
+  };
+
+  function showRequestModal(reqUid, reqData) {
+    pendingReqId = reqUid;
+    window.onShowRequestModal(reqData);
+    // Auto-reject after REQUEST_TTL
+    if (pendingReqTimer) clearTimeout(pendingReqTimer);
+    pendingReqTimer = setTimeout(async () => {
+      if (pendingReqId === reqUid && REQUEST_COL) {
+        await updateDoc(doc(REQUEST_COL, reqUid), { status: 'timeout' }).catch(console.error);
+      }
+      hideRequestModal();
+    }, REQUEST_TTL * 1000);
+  }
+
+  function hideRequestModal() {
+    pendingReqId = null;
+    if (pendingReqTimer) { clearTimeout(pendingReqTimer); pendingReqTimer = null; }
+    window.onHideRequestModal();
+  }
+
+  // ---- Cleanup stale request for current user ----
+  window.cancelMyRequest = async () => {
+    const user = window.currentUser;
+    if (!user || !REQUEST_COL) return;
+    await deleteDoc(doc(REQUEST_COL, user.uid)).catch(console.error);
+  };
+
   window.addEventListener('beforeunload', () => {
     const user = window.currentUser;
-    if (user) releaseLease(user.uid);
-    // Also fire synchronously via sendBeacon to be reliable
-    const payload = JSON.stringify({ uid: user?.uid, sessionId: SESSION_ID });
-    navigator.sendBeacon && navigator.sendBeacon('/dev/null'); // no server endpoint — just cleanup via beforeunload
+    if (user) {
+      releaseLease(user.uid);
+      window.cancelMyRequest();
+    }
   });
   // ================================================================
 
@@ -1005,12 +1150,14 @@
     if (user) {
       subscribeUserPresets(user.uid);
       subscribeLease(user.uid, user.displayName || user.email);
+      subscribeRequests(user.uid);
       startHeartbeat(user.uid, user.displayName || user.email);
       window.onUserSignedIn(user);
     } else {
       if (window.currentUser) releaseLease(window.currentUser.uid).catch(()=>{});
       unsubscribeAll();
       unsubscribeLease();
+      if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
       window.isController = false;
       window.onLeaseChange(false, null);
       window.onUserSignedOut();
@@ -1243,6 +1390,94 @@ function requireAuth(action) {
 
 // ========== CONTROL LEASE HANDLERS ==========
 window.isController = false;
+
+// ========== REQUEST MODAL — controller side ==========
+const REQUEST_TTL_UI = 30; // seconds, must match Firebase module constant
+let reqTimerInterval = null;
+
+window.onShowRequestModal = function(reqData) {
+  document.getElementById('reqWhoName').textContent = reqData.displayName || '—';
+  document.getElementById('requestModal').classList.add('show');
+  // Start countdown
+  let remaining = REQUEST_TTL_UI;
+  const arc   = document.getElementById('reqTimerArc');
+  const label = document.getElementById('reqTimerLabel');
+  const circumference = 132;
+  arc.style.stroke = '#ffc800';
+  if (reqTimerInterval) clearInterval(reqTimerInterval);
+  reqTimerInterval = setInterval(() => {
+    remaining--;
+    label.textContent = remaining;
+    arc.style.strokeDashoffset = circumference * (1 - remaining / REQUEST_TTL_UI);
+    if (remaining <= 10) arc.style.stroke = 'var(--red)';
+    if (remaining <= 0) { clearInterval(reqTimerInterval); reqTimerInterval = null; }
+  }, 1000);
+};
+
+window.onHideRequestModal = function() {
+  document.getElementById('requestModal').classList.remove('show');
+  if (reqTimerInterval) { clearInterval(reqTimerInterval); reqTimerInterval = null; }
+};
+
+function respondToRequest(decision) {
+  const accept = decision === 'accepted';
+  const uid = window._pendingReqUid;
+  if (window.respondToControlRequest) window.respondToControlRequest(uid, accept);
+  if (accept) showToast('Управление передано', 'ok');
+  else showToast('Запрос отклонён', 'err');
+}
+
+// Intercept showRequestModal to capture uid for respond function
+const _origShow = window.onShowRequestModal;
+window.onShowRequestModal = function(reqData) {
+  window._pendingReqUid = reqData.uid;
+  _origShow(reqData);
+};
+
+// ========== REQUEST — requester side ==========
+let cooldownTimer   = null;
+let cooldownEnd     = 0;
+let cooldownInterval = null;
+
+window.onRequestSent = function() {
+  // Start 60s cooldown on TAKE CONTROL button
+  cooldownEnd = Date.now() + 60000;
+  startCooldownUI();
+  showToast('Запрос отправлен контроллеру', 'ok');
+};
+
+window.onMyRequestStatusChange = function(reqData) {
+  if (reqData.status === 'accepted') {
+    showToast('Запрос принят — получаю управление!', 'ok');
+    endCooldownUI();
+    window.cancelMyRequest && window.cancelMyRequest();
+  } else if (reqData.status === 'rejected') {
+    showToast('Запрос отклонён', 'err');
+    // Keep cooldown running
+  } else if (reqData.status === 'timeout') {
+    showToast('Контроллер не ответил', 'err');
+  }
+};
+
+function startCooldownUI() {
+  const btn = document.getElementById('leaseTakeBtn');
+  if (!btn) return;
+  btn.classList.add('cooldown');
+  if (cooldownInterval) clearInterval(cooldownInterval);
+  cooldownInterval = setInterval(() => {
+    const left = Math.ceil((cooldownEnd - Date.now()) / 1000);
+    if (left <= 0) { endCooldownUI(); return; }
+    btn.innerHTML = `TAKE CONTROL <span class="take-timer">${left}s</span>`;
+  }, 500);
+}
+
+function endCooldownUI() {
+  const btn = document.getElementById('leaseTakeBtn');
+  if (!btn) return;
+  btn.classList.remove('cooldown');
+  btn.innerHTML = 'TAKE CONTROL';
+  if (cooldownInterval) { clearInterval(cooldownInterval); cooldownInterval = null; }
+}
 
 window.onLeaseChange = function(isMine, lease) {
   const banner  = document.getElementById('leaseBanner');
