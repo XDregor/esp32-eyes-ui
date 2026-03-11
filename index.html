@@ -912,7 +912,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import {
     getFirestore, collection, addDoc, updateDoc, setDoc, deleteDoc, doc,
-    orderBy, query, serverTimestamp, onSnapshot, getDoc
+    orderBy, query, where, getDocs, serverTimestamp, onSnapshot, getDoc
   } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
   import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -1028,23 +1028,48 @@
       snap.docChanges().forEach(change => {
         const reqData = change.doc.data();
         const reqUid  = change.doc.id;
+
+        // My own request — watch status changes only (not 'added' which is the initial write)
         if (reqUid === uid) {
-          // My own request — watch status
-          window.onMyRequestStatusChange(reqData);
+          if (change.type === 'modified') window.onMyRequestStatusChange(reqData);
           return;
         }
-        if (!window.isController) return;
-        if (change.type === 'added' && reqData.status === 'pending') {
-          // New request for control — show modal
-          showRequestModal(reqUid, reqData);
-        }
-        if (change.type === 'modified' && reqData.status !== 'pending') {
-          // Request resolved elsewhere — hide modal
+
+        // Someone else's request — only the controller handles these
+        // Note: check isController lazily here so we catch requests that arrive
+        // while lease is still being acquired
+        if (change.type === 'removed') {
           if (pendingReqId === reqUid) hideRequestModal();
+          return;
+        }
+        // 'added' covers: controller was offline when request sent (catches up on connect)
+        // 'modified' covers: re-sent request after timeout
+        if ((change.type === 'added' || change.type === 'modified') && reqData.status === 'pending') {
+          // Defer check slightly so isController has time to settle after lease
+          setTimeout(() => {
+            if (window.isController) showRequestModal(reqUid, reqData);
+          }, 300);
+          return;
+        }
+        // Request resolved (accepted/rejected/timeout) — hide modal if we're showing it
+        if (reqData.status !== 'pending' && pendingReqId === reqUid) {
+          hideRequestModal();
         }
       });
     });
   }
+
+  // ---- Scan for pending requests (called when lease just acquired) ----
+  window._checkPendingRequestsAsync = async (uid) => {
+    if (!REQUEST_COL) return;
+    try {
+      const q = query(REQUEST_COL, where('status', '==', 'pending'));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        if (docSnap.id !== uid) showRequestModal(docSnap.id, docSnap.data());
+      });
+    } catch(e) { console.error('checkPending:', e); }
+  };
 
   // ---- Send a request for control ----
   window.tryTakeLease = async () => {
@@ -1479,6 +1504,15 @@ function endCooldownUI() {
   if (cooldownInterval) { clearInterval(cooldownInterval); cooldownInterval = null; }
 }
 
+// Called when we just became controller — scan for already-pending requests
+window.checkPendingRequests = async function() {
+  if (!window._lastLeaseDeviceId) return;
+  const uid = window.currentUser?.uid;
+  if (!uid) return;
+  // Use getDocs via module bridge
+  window._checkPendingRequestsAsync && window._checkPendingRequestsAsync(uid);
+};
+
 window.onLeaseChange = function(isMine, lease) {
   const banner  = document.getElementById('leaseBanner');
   const dot     = document.getElementById('leaseDot');
@@ -1500,6 +1534,8 @@ window.onLeaseChange = function(isMine, lease) {
     text.innerHTML  = '<strong>CONTROLLER</strong>';
     takeBtn.style.display = 'none';
     overlay.classList.remove('show');
+    // Became controller — check if there's already a pending request waiting
+    window.checkPendingRequests && window.checkPendingRequests();
   } else if (lease) {
     const who = lease.displayName || 'другой пользователь';
     dot.className   = 'lease-dot wait';
