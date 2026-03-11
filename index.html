@@ -142,6 +142,38 @@
   .user-menu-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
   .user-menu-item.danger:hover { background: var(--red-dim); color: var(--red); }
 
+  /* ===== CONTROL LEASE ===== */
+  #leaseBanner {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 1200; display: none; align-items: center; gap: 10px;
+    background: rgba(16,16,26,0.92); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,200,0,0.35); border-radius: 40px;
+    padding: 9px 18px 9px 14px; font-family: var(--mono); font-size: 11px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,200,0,0.08);
+    animation: slideUp 0.3s cubic-bezier(.4,0,.2,1);
+    white-space: nowrap;
+  }
+  #leaseBanner.show { display: flex; }
+  .lease-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .lease-dot.ctrl  { background: #00ffb3; box-shadow: 0 0 8px rgba(0,255,179,0.6); animation: pulse-green 2s infinite; }
+  .lease-dot.wait  { background: #ffc800; box-shadow: 0 0 8px rgba(255,200,0,0.5); }
+  #leaseText { color: var(--text-muted); letter-spacing: 0.04em; }
+  #leaseText strong { color: var(--text); font-weight: 700; }
+  #leaseTakeBtn {
+    background: rgba(255,200,0,0.12); border: 1px solid rgba(255,200,0,0.4);
+    border-radius: 40px; padding: 5px 12px; font-family: var(--mono); font-size: 10px;
+    font-weight: 700; color: #ffc800; cursor: pointer; outline: none;
+    transition: all 0.18s; letter-spacing: 0.06em;
+  }
+  #leaseTakeBtn:hover { background: rgba(255,200,0,0.22); border-color: rgba(255,200,0,0.7); }
+
+  /* Read-only overlay on canvas area */
+  #readonlyOverlay {
+    position: absolute; inset: 0; z-index: 50; display: none;
+    cursor: not-allowed;
+  }
+  #readonlyOverlay.show { display: block; }
+
   /* Locked overlay for add buttons when not authed */
   .auth-locked { opacity: 0.4; pointer-events: none; }
   @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -532,6 +564,13 @@
   <span id="connLabel">OFFLINE</span>
 </div>
 
+<!-- Lease status banner -->
+<div id="leaseBanner">
+  <div class="lease-dot ctrl" id="leaseDot"></div>
+  <span id="leaseText">CONTROLLER</span>
+  <button id="leaseTakeBtn" style="display:none" onclick="window.tryTakeLease && window.tryTakeLease()">TAKE CONTROL</button>
+</div>
+
 <div id="toastContainer"></div>
 
 <!-- User dropdown menu -->
@@ -581,7 +620,8 @@
           <button class="mode-btn" data-mode="text" onclick="setMode('text')"><span class="mode-icon">💬</span>TEXT</button>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="eyeCanvas"></canvas>
+          <div id="readonlyOverlay"></div>
+  <canvas id="eyeCanvas"></canvas>
           <div id="loadingBox"><div>Loading...</div><div class="loader-bar-wrap"><div class="loader-bar"></div></div></div>
           <div class="canvas-overlay-label" id="modeLabel">AUTO</div>
         </div>
@@ -793,8 +833,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
-    orderBy, query, serverTimestamp, onSnapshot
+    getFirestore, collection, addDoc, updateDoc, setDoc, deleteDoc, doc,
+    orderBy, query, serverTimestamp, onSnapshot, getDoc
   } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
   import {
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -817,6 +857,93 @@
 
   let drawUnsub = null;
   let textUnsub  = null;
+
+  // ================================================================
+  // CONTROL LEASE SYSTEM
+  // ================================================================
+  const LEASE_DOC      = doc(db, 'control', 'lease');
+  const LEASE_TTL_MS   = 25000;   // lease expires after 25s without heartbeat
+  const HEARTBEAT_MS   = 10000;   // send heartbeat every 10s
+  const SESSION_ID     = crypto.randomUUID();
+
+  let leaseUnsub     = null;
+  let heartbeatTimer = null;
+  let leaseState     = null; // current lease doc data
+
+  // Acquire or refresh lease
+  async function acquireLease(uid, displayName) {
+    const now = Date.now();
+    await setDoc(LEASE_DOC, {
+      uid,
+      sessionId: SESSION_ID,
+      displayName: displayName || uid.slice(0, 8),
+      acquiredAt: now,
+      expiresAt:  now + LEASE_TTL_MS
+    });
+  }
+
+  // Release lease only if we own it
+  async function releaseLease(uid) {
+    try {
+      const snap = await getDoc(LEASE_DOC);
+      if (snap.exists() && snap.data().uid === uid && snap.data().sessionId === SESSION_ID) {
+        await deleteDoc(LEASE_DOC);
+      }
+    } catch(e) { /* ignore */ }
+  }
+
+  // Heartbeat — keep lease alive while this tab is open
+  function startHeartbeat(uid, displayName) {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      // Only renew if we are the controller
+      if (window.isController) acquireLease(uid, displayName).catch(console.error);
+    }, HEARTBEAT_MS);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  // Subscribe to lease document
+  function subscribeLease(uid, displayName) {
+    if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
+      const now = Date.now();
+      if (!snap.exists() || snap.data().expiresAt < now) {
+        // Lease is free — grab it
+        await acquireLease(uid, displayName).catch(console.error);
+        return;
+      }
+      leaseState = snap.data();
+      const isMine = leaseState.uid === uid && leaseState.sessionId === SESSION_ID;
+      window.isController = isMine;
+      window.onLeaseChange(isMine, leaseState);
+    });
+  }
+
+  function unsubscribeLease() {
+    if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    stopHeartbeat();
+    window.isController = false;
+  }
+
+  // Exposed: try to forcibly take control
+  window.tryTakeLease = async () => {
+    const user = window.currentUser;
+    if (!user) return;
+    await acquireLease(user.uid, user.displayName || user.email).catch(console.error);
+  };
+
+  // Release on page close/refresh
+  window.addEventListener('beforeunload', () => {
+    const user = window.currentUser;
+    if (user) releaseLease(user.uid);
+    // Also fire synchronously via sendBeacon to be reliable
+    const payload = JSON.stringify({ uid: user?.uid, sessionId: SESSION_ID });
+    navigator.sendBeacon && navigator.sendBeacon('/dev/null'); // no server endpoint — just cleanup via beforeunload
+  });
+  // ================================================================
 
   // ---- Per-user collection paths ----
   const userDrawCol  = (uid) => collection(db, 'users', uid, 'draw_presets');
@@ -855,9 +982,15 @@
     window.currentUser = user || null;
     if (user) {
       subscribeUserPresets(user.uid);
+      subscribeLease(user.uid, user.displayName || user.email);
+      startHeartbeat(user.uid, user.displayName || user.email);
       window.onUserSignedIn(user);
     } else {
+      if (window.currentUser) releaseLease(window.currentUser.uid).catch(()=>{});
       unsubscribeAll();
+      unsubscribeLease();
+      window.isController = false;
+      window.onLeaseChange(false, null);
       window.onUserSignedOut();
     }
   });
@@ -1071,6 +1204,45 @@ function requireAuth(action) {
   action();
   return true;
 }
+
+// ========== CONTROL LEASE HANDLERS ==========
+window.isController = false;
+
+window.onLeaseChange = function(isMine, lease) {
+  const banner  = document.getElementById('leaseBanner');
+  const dot     = document.getElementById('leaseDot');
+  const text    = document.getElementById('leaseText');
+  const takeBtn = document.getElementById('leaseTakeBtn');
+  const overlay = document.getElementById('readonlyOverlay');
+
+  if (!window.currentUser) {
+    // Not logged in — hide banner, no control
+    banner.classList.remove('show');
+    overlay.classList.remove('show');
+    return;
+  }
+
+  banner.classList.add('show');
+
+  if (isMine) {
+    dot.className   = 'lease-dot ctrl';
+    text.innerHTML  = '<strong>CONTROLLER</strong>';
+    takeBtn.style.display = 'none';
+    overlay.classList.remove('show');
+  } else if (lease) {
+    const who = lease.displayName || 'другой пользователь';
+    dot.className   = 'lease-dot wait';
+    text.innerHTML  = `READ-ONLY &nbsp;·&nbsp; управляет <strong>${who}</strong>`;
+    takeBtn.style.display = '';
+    overlay.classList.add('show');
+  } else {
+    // No lease yet — acquiring
+    dot.className   = 'lease-dot wait';
+    text.innerHTML  = 'Получение управления...';
+    takeBtn.style.display = 'none';
+    overlay.classList.remove('show');
+  }
+};
 
 // ========== FIRESTORE CALLBACKS (called from module script) ==========
 window.onDrawPresetsLoaded = function(presets) {
@@ -1949,6 +2121,8 @@ function requestEyeSync() {
 
 function sendUpdateToESP() {
   if (!ESP_IP) return;
+  // Only the controller may send commands to ESP
+  if (window.currentUser && !window.isController) return;
   let state = {
     mode, manualEyeStyle, leftBlink:leftEyeDisp.blink, rightBlink:rightEyeDisp.blink,
     strokes: strokes.slice(-50).map(s => ({ points: s.points.map(p=>[p.x,p.y]), size: s.size, erase: s.erase||false })),
