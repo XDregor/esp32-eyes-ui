@@ -959,13 +959,16 @@
 
   window.updateLeaseDevice = (deviceId) => {
     if (!deviceId || window._lastLeaseDeviceId === deviceId) return;
+    console.log('[LEASE] deviceId received:', deviceId);
     window._lastLeaseDeviceId = deviceId;
     LEASE_DOC   = doc(db, 'control', deviceId);
     REQUEST_COL = collection(db, 'control', deviceId, 'requests');
+    // (Re)subscribe now that we have the real device doc path
     const user = window.currentUser;
     if (user) {
       subscribeLease(user.uid, user.displayName || user.email);
       subscribeRequests(user.uid);
+      startHeartbeat(user.uid, user.displayName || user.email);
     }
   };
 
@@ -1001,14 +1004,18 @@
   // ---- Subscribe to lease ----
   function subscribeLease(uid, displayName) {
     if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    console.log('[LEASE] subscribeLease on', LEASE_DOC.path);
     leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
       const now = Date.now();
+      console.log('[LEASE] snapshot: exists=', snap.exists(), snap.exists() ? snap.data() : null);
       if (!snap.exists() || snap.data().expiresAt < now) {
+        console.log('[LEASE] free — acquiring for', uid);
         await acquireLease(uid, displayName).catch(console.error);
         return;
       }
       leaseState = snap.data();
       const isMine = leaseState.uid === uid && leaseState.sessionId === SESSION_ID;
+      console.log('[LEASE] isMine=', isMine, 'owner=', leaseState.uid, 'me=', uid, 'sessionMatch=', leaseState.sessionId === SESSION_ID);
       window.isController = isMine;
       window.onLeaseChange(isMine, leaseState);
     });
@@ -1024,7 +1031,9 @@
   function subscribeRequests(uid) {
     if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
     if (!REQUEST_COL) return;
+    console.log('[REQUESTS] subscribing, isController=', window.isController);
     requestsUnsub = onSnapshot(REQUEST_COL, (snap) => {
+      console.log('[REQUESTS] snapshot, changes:', snap.docChanges().length, 'isController=', window.isController);
       snap.docChanges().forEach(change => {
         const reqData = change.doc.data();
         const reqUid  = change.doc.id;
@@ -1104,7 +1113,8 @@
 
   function showRequestModal(reqUid, reqData) {
     pendingReqId = reqUid;
-    window.onShowRequestModal(reqData);
+    console.log('[MODAL] showRequestModal called, reqUid=', reqUid, 'reqData=', reqData);
+    window.onShowRequestModal({ ...reqData, uid: reqUid });
     // Auto-reject after REQUEST_TTL
     if (pendingReqTimer) clearTimeout(pendingReqTimer);
     pendingReqTimer = setTimeout(async () => {
@@ -1174,12 +1184,18 @@
     window.currentUser = user || null;
     if (user) {
       subscribeUserPresets(user.uid);
-      subscribeLease(user.uid, user.displayName || user.email);
-      subscribeRequests(user.uid);
-      startHeartbeat(user.uid, user.displayName || user.email);
+      // Don't start lease/requests here — wait for deviceId from ESP /data
+      // updateLeaseDevice() will trigger subscribe once deviceId is known
+      // If deviceId already known (user signed in after first poll), start now
+      if (window._lastLeaseDeviceId) {
+        subscribeLease(user.uid, user.displayName || user.email);
+        subscribeRequests(user.uid);
+        startHeartbeat(user.uid, user.displayName || user.email);
+      }
       window.onUserSignedIn(user);
     } else {
-      if (window.currentUser) releaseLease(window.currentUser.uid).catch(()=>{});
+      const prev = window.currentUser;
+      if (prev) releaseLease(prev.uid).catch(()=>{});
       unsubscribeAll();
       unsubscribeLease();
       if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
@@ -1421,6 +1437,8 @@ const REQUEST_TTL_UI = 30; // seconds, must match Firebase module constant
 let reqTimerInterval = null;
 
 window.onShowRequestModal = function(reqData) {
+  console.log('[MODAL] onShowRequestModal called, data=', reqData);
+  window._pendingReqUid = reqData.uid;
   document.getElementById('reqWhoName').textContent = reqData.displayName || '—';
   document.getElementById('requestModal').classList.add('show');
   // Start countdown
@@ -1452,12 +1470,7 @@ function respondToRequest(decision) {
   else showToast('Запрос отклонён', 'err');
 }
 
-// Intercept showRequestModal to capture uid for respond function
-const _origShow = window.onShowRequestModal;
-window.onShowRequestModal = function(reqData) {
-  window._pendingReqUid = reqData.uid;
-  _origShow(reqData);
-};
+// uid is passed directly via reqData.uid from showRequestModal
 
 // ========== REQUEST — requester side ==========
 let cooldownTimer   = null;
