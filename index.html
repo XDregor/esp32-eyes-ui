@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
 <style>
   :root {
     --bg: #0a0a0f;
@@ -50,6 +51,131 @@
   #connectionBadge.connected .conn-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); animation: pulse-green 2s infinite; }
   #connectionBadge.disconnected .conn-dot { background: var(--red); box-shadow: 0 0 8px rgba(255,77,109,0.5); animation: pulse-red 1.5s infinite; }
   @keyframes pulse-green { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+
+  /* ===== AUTH BADGE ===== */
+  #authBadge {
+    position: fixed; top: 16px; right: 122px; z-index: 1000;
+  }
+  .auth-btn-guest, .auth-btn-user {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(16,16,26,0.85); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 40px;
+    padding: 7px 14px 7px 10px; font-family: var(--mono); font-size: 12px;
+    cursor: pointer; outline: none; transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent; white-space: nowrap;
+  }
+  .auth-btn-guest { color: var(--text-muted); }
+  .auth-btn-guest:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+  .auth-btn-user { border-color: rgba(0,255,179,0.3); color: var(--accent); }
+  .auth-btn-user:hover { border-color: rgba(0,255,179,0.45); background: rgba(0,255,179,0.06); }
+  .auth-avatar {
+    width: 18px; height: 18px; border-radius: 50%; object-fit: cover;
+    border: 1px solid rgba(0,255,179,0.3); flex-shrink: 0;
+  }
+  .auth-avatar-placeholder {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--accent-dim);
+    border: 1px solid rgba(0,255,179,0.3); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--accent); font-weight: 700;
+  }
+  .google-icon { flex-shrink: 0; }
+
+  /* ===== AUTH MODAL ===== */
+  .auth-modal-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(10,10,15,0.75); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; animation: fadeIn 0.2s ease;
+  }
+  .auth-modal {
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; width: 100%; max-width: 320px;
+    overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,255,179,0.06);
+    animation: slideUp 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  .auth-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 0;
+  }
+  .auth-modal-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); }
+  .auth-modal-close {
+    background: none; border: none; cursor: pointer; color: var(--text-dim);
+    padding: 4px; border-radius: 6px; transition: 0.15s; line-height: 0;
+  }
+  .auth-modal-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .auth-modal-body {
+    padding: 20px 24px 28px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;
+  }
+  .auth-modal-icon { font-size: 40px; line-height: 1; }
+  .auth-modal-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; font-weight: 300; max-width: 240px; }
+  .auth-google-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: none; border-radius: 40px;
+    padding: 10px 22px; font-family: var(--sans); font-size: 13px; font-weight: 500;
+    color: #3c4043; cursor: pointer; outline: none; transition: all 0.18s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; margin-top: 4px;
+  }
+  .auth-google-btn:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.4); transform: translateY(-1px); }
+  .auth-google-btn:active { transform: translateY(0); }
+
+  /* ===== USER MENU DROPDOWN ===== */
+  #userMenu {
+    position: fixed; top: 52px; right: 134px; z-index: 1500;
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px; padding: 6px; min-width: 200px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    display: none; animation: slideUp 0.18s cubic-bezier(.4,0,.2,1);
+  }
+  #userMenu.open { display: block; }
+  .user-menu-info {
+    padding: 10px 12px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+  }
+  .user-menu-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-menu-email { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-menu-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text-muted); transition: 0.15s;
+    background: none; border: none; width: 100%; text-align: left; outline: none;
+  }
+  .user-menu-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .user-menu-item.danger:hover { background: var(--red-dim); color: var(--red); }
+
+  /* ===== CONTROL LEASE ===== */
+  #leaseBanner {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 1200; display: none; align-items: center; gap: 10px;
+    background: rgba(16,16,26,0.92); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,200,0,0.35); border-radius: 40px;
+    padding: 9px 18px 9px 14px; font-family: var(--mono); font-size: 11px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,200,0,0.08);
+    animation: slideUp 0.3s cubic-bezier(.4,0,.2,1);
+    white-space: nowrap;
+  }
+  #leaseBanner.show { display: flex; }
+  .lease-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .lease-dot.ctrl  { background: #00ffb3; box-shadow: 0 0 8px rgba(0,255,179,0.6); animation: pulse-green 2s infinite; }
+  .lease-dot.wait  { background: #ffc800; box-shadow: 0 0 8px rgba(255,200,0,0.5); }
+  #leaseText { color: var(--text-muted); letter-spacing: 0.04em; }
+  #leaseText strong { color: var(--text); font-weight: 700; }
+  #leaseTakeBtn {
+    background: rgba(255,200,0,0.12); border: 1px solid rgba(255,200,0,0.4);
+    border-radius: 40px; padding: 5px 12px; font-family: var(--mono); font-size: 10px;
+    font-weight: 700; color: #ffc800; cursor: pointer; outline: none;
+    transition: all 0.18s; letter-spacing: 0.06em;
+  }
+  #leaseTakeBtn:hover { background: rgba(255,200,0,0.22); border-color: rgba(255,200,0,0.7); }
+
+  /* Read-only overlay on canvas area */
+  #readonlyOverlay {
+    position: absolute; inset: 0; z-index: 50; display: none;
+    cursor: not-allowed;
+  }
+  #readonlyOverlay.show { display: block; }
+
+  /* Locked overlay for add buttons when not authed */
+  .auth-locked { opacity: 0.4; pointer-events: none; }
   @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 40px; }
@@ -98,6 +224,16 @@
   .brush-dot { background: var(--text-dim); border-radius: 50%; transition: background 0.15s; }
   .brush-btn.active .brush-dot { background: var(--text); }
   .dot-sm { width: 8px; height: 8px; } .dot-md { width: 14px; height: 14px; } .dot-lg { width: 20px; height: 20px; }
+
+  /* Eraser button */
+  .eraser-btn {
+    background: none; border: 1px solid var(--border); cursor: pointer; padding: 5px 10px;
+    border-radius: 40px; display: flex; align-items: center; gap: 5px; outline: none;
+    color: var(--text-muted); font-size: 12px; font-family: var(--mono); transition: 0.18s;
+  }
+  .eraser-btn.active { background: rgba(255,255,179,0.1); border-color: rgba(255,255,100,0.4); color: #ffff64; }
+  .eraser-btn:not(.active):hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
   .clear-btn { background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.25); border-radius: 40px; padding: 7px 16px; color: var(--red); font-size: 13px; font-family: var(--sans); cursor: pointer; transition: 0.18s; display: flex; align-items: center; gap: 6px; }
   .clear-btn:hover { background: rgba(255,77,109,0.18); }
 
@@ -111,19 +247,150 @@
   .presets-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
   .presets-section-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 
-  .draw-presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  /* ===== DRAW PRESETS — GRID + EDITOR ===== */
+  .draw-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: auto;
+    gap: 6px;
+    align-items: start;
+  }
   .draw-preset-btn {
     background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    cursor: pointer; transition: all 0.18s; outline: none; padding: 6px 6px 4px;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
+    cursor: pointer; transition: border-color 0.18s, background 0.18s; outline: none; padding: 4px 4px 3px;
+    display: block; overflow: hidden; width: 100%;
+    -webkit-tap-highlight-color: transparent; position: relative;
+    /* critical: self-contained block, no flex/grid influence on children */
+    contain: layout style;
   }
   .draw-preset-btn:hover { border-color: rgba(0,255,179,0.3); background: rgba(0,255,179,0.05); }
   .draw-preset-btn.selected { border-color: rgba(0,255,179,0.6); background: var(--accent-dim); box-shadow: 0 0 12px rgba(0,255,179,0.1) inset; }
-  .draw-preset-btn canvas { width: 100%; height: auto; aspect-ratio: 2 / 1; display: block; border-radius: 4px; background: #000; flex-shrink: 0; }
-  .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* Both <img> and <canvas> thumbs — forced consistent sizing */
+  .draw-preset-btn img,
+  .draw-preset-btn canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 1;
+    border-radius: 4px;
+    background: #000;
+    /* prevent intrinsic-size blowout */
+    min-height: 0;
+    max-width: 100%;
+  }
+  .draw-preset-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; padding: 3px 2px 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-align: center; }
   .draw-preset-btn.selected .draw-preset-label { color: var(--accent); }
 
+  /* Delete + Edit icons on preset thumb */
+  .preset-del-btn, .preset-edit-btn {
+    position: absolute; z-index: 10;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px; line-height: 1; transition: 0.15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  .preset-del-btn { top: 4px; right: 4px; background: rgba(255,77,109,0.85); }
+  .preset-del-btn:hover { background: var(--red); transform: scale(1.15); }
+  .preset-edit-btn { top: 4px; left: 4px; background: rgba(0,255,179,0.25); }
+  .preset-edit-btn:hover { background: rgba(0,255,179,0.7); transform: scale(1.15); }
+  .draw-preset-btn:hover .preset-del-btn,
+  .draw-preset-btn:hover .preset-edit-btn { display: flex; }
+
+  /* Add preset button — identical box model to .draw-preset-btn */
+  .draw-preset-add {
+    background: var(--surface2); border: 1px dashed rgba(0,255,179,0.25); border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.18s; outline: none;
+    display: block; color: var(--text-dim); -webkit-tap-highlight-color: transparent;
+    contain: layout style; width: 100%;
+    padding: 4px 4px 3px;
+  }
+  /* inner uses same aspect-ratio as the img inside .draw-preset-btn */
+  .draw-preset-add-inner {
+    aspect-ratio: 2 / 1;
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border-radius: 4px;
+  }
+  /* label row matches .draw-preset-label height exactly */
+  .draw-preset-add-label-row {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 2px 1px; display: block; text-align: center; width: 100%;
+    color: var(--text-dim);
+  }
+  .draw-preset-add:hover { border-color: rgba(0,255,179,0.5); background: rgba(0,255,179,0.05); color: var(--accent); }
+  .draw-preset-add:hover .draw-preset-add-label-row { color: var(--accent); }
+  .draw-preset-add svg { transition: transform 0.2s; }
+  .draw-preset-add:hover svg { transform: rotate(90deg); }
+  .draw-preset-add-label { font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* ===== DRAW PRESET EDITOR PANEL ===== */
+  #drawEditorPanel {
+    display: none;
+    margin-top: 12px;
+    background: var(--surface);
+    border: 1px solid rgba(0,255,179,0.2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: slideUp 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+
+  #drawEditorPanel .editor-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .editor-title-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  #drawEditorNameInput {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 10px; outline: none; width: 100%; max-width: 160px; transition: border-color 0.2s;
+  }
+  #drawEditorNameInput:focus { border-color: rgba(0,255,179,0.4); }
+  .editor-status { font-family: var(--mono); font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
+  .editor-status.saving { color: var(--accent); }
+  .editor-status.saved { color: rgba(0,255,179,0.5); }
+
+  .editor-close-btn {
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    padding: 4px; border-radius: 6px; transition: 0.15s; flex-shrink: 0;
+  }
+  .editor-close-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+
+  #drawEditorCanvas {
+    width: 100%; height: 160px; background: #000; display: block; touch-action: none; cursor: crosshair;
+  }
+
+  .editor-toolbar {
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+  }
+  .editor-brush-group { display: flex; gap: 4px; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 40px; padding: 5px 9px; }
+
+  .editor-btn-group { display: flex; gap: 6px; margin-left: auto; }
+  .editor-btn {
+    background: none; border: 1px solid var(--border); border-radius: 40px;
+    padding: 6px 14px; font-size: 12px; font-family: var(--mono); font-weight: 700;
+    cursor: pointer; outline: none; transition: 0.18s; letter-spacing: 0.05em;
+    display: flex; align-items: center; gap: 5px; color: var(--text-muted);
+  }
+  .editor-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .editor-btn.primary { background: var(--accent-dim); border-color: rgba(0,255,179,0.4); color: var(--accent); }
+  .editor-btn.primary:hover { background: rgba(0,255,179,0.2); box-shadow: 0 0 14px rgba(0,255,179,0.15); }
+  .editor-btn.danger { color: var(--red); border-color: rgba(255,77,109,0.25); }
+  .editor-btn.danger:hover { background: var(--red-dim); }
+
+  /* NEW — loading skeleton for draw grid */
+  .draw-presets-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .skeleton-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); aspect-ratio: 2/1; animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%,100%{opacity:0.4} 50%{opacity:0.7} }
+
+  .cloud-loading-msg { font-family: var(--mono); font-size: 11px; color: var(--text-muted); text-align: center; padding: 16px 0 8px; }
+
+  /* ===== TEXT PRESETS ===== */
   .text-presets-lang-tabs { display: flex; gap: 4px; }
   .lang-tab-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 10px; font-weight: 700; cursor: pointer; outline: none; transition: all 0.15s; }
   .lang-tab-btn.active { background: var(--accent-dim); border-color: rgba(0,255,179,0.35); color: var(--accent); }
@@ -134,13 +401,67 @@
   .text-presets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .text-preset-btn {
     background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 10px 12px; cursor: pointer; text-align: left; outline: none; transition: all 0.18s;
-    -webkit-tap-highlight-color: transparent;
+    padding: 10px 32px 10px 12px; cursor: pointer; text-align: left; outline: none; transition: all 0.18s;
+    -webkit-tap-highlight-color: transparent; position: relative;
   }
   .text-preset-btn:hover { border-color: rgba(0,255,179,0.3); background: rgba(0,255,179,0.05); }
   .text-preset-btn.selected { border-color: rgba(0,255,179,0.6); background: var(--accent-dim); }
   .text-preset-preview { font-family: var(--mono); font-size: 11px; color: var(--text); line-height: 1.4; display: block; }
   .text-preset-btn.selected .text-preset-preview { color: var(--accent); }
+
+  /* Delete X on text preset */
+  .text-del-btn {
+    position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(255,77,109,0); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,77,109,0); font-size: 11px; line-height: 1; transition: 0.18s;
+  }
+  .text-preset-btn:hover .text-del-btn { color: rgba(255,77,109,0.7); background: rgba(255,77,109,0.12); }
+  .text-del-btn:hover { color: var(--red) !important; background: rgba(255,77,109,0.25) !important; transform: translateY(-50%) scale(1.15) !important; }
+
+  /* Add phrase button */
+  .text-preset-add {
+    background: var(--surface2); border: 2px dashed rgba(0,255,179,0.2); border-radius: var(--radius-sm);
+    padding: 10px 12px; cursor: pointer; text-align: center; outline: none; transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    color: var(--text-dim); font-family: var(--mono); font-size: 11px;
+    -webkit-tap-highlight-color: transparent; min-height: 40px;
+  }
+  .text-preset-add:hover { border-color: rgba(0,255,179,0.45); color: var(--accent); background: rgba(0,255,179,0.04); }
+  .text-preset-add svg { transition: transform 0.2s; }
+  .text-preset-add:hover svg { transform: rotate(90deg); }
+
+  /* Inline add phrase input */
+  .text-add-inline {
+    grid-column: 1 / -1;
+    display: flex; gap: 6px; align-items: center;
+    background: var(--surface2); border: 1px solid rgba(0,255,179,0.35); border-radius: var(--radius-sm);
+    padding: 8px 10px; animation: fadeIn 0.15s ease;
+  }
+  .text-add-input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+  }
+  .text-add-input::placeholder { color: var(--text-dim); }
+  .text-add-confirm {
+    background: var(--accent-dim); border: 1px solid rgba(0,255,179,0.4); border-radius: 6px;
+    color: var(--accent); font-family: var(--mono); font-size: 10px; font-weight: 700;
+    padding: 4px 10px; cursor: pointer; outline: none; transition: 0.15s; flex-shrink: 0;
+  }
+  .text-add-confirm:hover { background: rgba(0,255,179,0.2); }
+  .text-add-cancel {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 2px 4px; outline: none; transition: 0.15s; flex-shrink: 0;
+  }
+  .text-add-cancel:hover { color: var(--red); }
+
+  /* Spinner */
+  .mini-spinner {
+    width: 12px; height: 12px; border: 2px solid rgba(0,255,179,0.2); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .data-table { width: 100%; border-collapse: collapse; }
   .data-table tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
@@ -175,81 +496,27 @@
   .btn-state-badge.released { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
 
   /* ===== 3D MODEL VIEWER ===== */
-  #model3dContainer {
-    display: none;
-    margin-bottom: 12px;
-  }
-  #model3dContainer .card-header {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  #model3dWrap {
-    position: relative;
-    width: 100%;
-    height: 280px;
-    background: #000;
-    border-radius: 0 0 var(--radius) var(--radius);
-    overflow: hidden;
-  }
-  #model3dCanvas {
-    width: 100% !important;
-    height: 100% !important;
-    display: block;
-  }
-  #model3dOverlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: rgba(10,10,15,0.92);
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    z-index: 10;
-    transition: opacity 0.4s ease;
-  }
+  #model3dContainer { display: none; margin-bottom: 12px; }
+  #model3dContainer .card-header { display: flex; align-items: center; justify-content: space-between; }
+  #model3dWrap { position: relative; width: 100%; height: 280px; background: #000; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  #model3dCanvas { width: 100% !important; height: 100% !important; display: block; }
+  #model3dOverlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: rgba(10,10,15,0.92); font-family: var(--mono); font-size: 12px; color: var(--text-muted); z-index: 10; transition: opacity 0.4s ease; }
   #model3dOverlay.hidden { opacity: 0; pointer-events: none; }
   #model3dOverlay .loader-bar-wrap { width: 55%; }
   #model3dOverlay .loader-bar { animation: none; transition: width 0.3s ease; }
-
-  .model-status-row {
-    position: absolute;
-    bottom: 10px;
-    left: 12px;
-    right: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
-  }
-  .model-axis-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: rgba(0,255,179,0.5);
-    letter-spacing: 0.08em;
-  }
-  .model-reset-btn {
-    background: rgba(16,16,26,0.8);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 12px;
-    color: var(--text-muted);
-    font-size: 11px;
-    font-family: var(--mono);
-    cursor: pointer;
-    pointer-events: all;
-    transition: 0.2s;
-  }
+  .model-status-row { position: absolute; bottom: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+  .model-axis-badge { font-family: var(--mono); font-size: 10px; color: rgba(0,255,179,0.5); letter-spacing: 0.08em; }
+  .model-reset-btn { background: rgba(16,16,26,0.8); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; color: var(--text-muted); font-size: 11px; font-family: var(--mono); cursor: pointer; pointer-events: all; transition: 0.2s; }
   .model-reset-btn:hover { color: var(--accent); border-color: rgba(0,255,179,0.3); }
 
-  .sensor-toggle-row {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
+  .sensor-toggle-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
+
+  /* Toast notification */
+  #toastContainer { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+  .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 40px; padding: 9px 18px; font-family: var(--mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.05em; box-shadow: 0 4px 20px rgba(0,0,0,0.5); animation: toastIn 0.25s ease; white-space: nowrap; }
+  .toast.ok { border-color: rgba(0,255,179,0.35); color: var(--accent); }
+  .toast.err { border-color: rgba(255,77,109,0.35); color: var(--red); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
   @media (max-width: 360px) {
     .mode-btn { font-size: 9px; padding: 8px 2px; } .mode-icon { font-size: 15px; }
@@ -260,9 +527,62 @@
 </head>
 <body>
 
+<!-- Auth Button -->
+<div id="authBadge">
+  <button id="authBtn" class="auth-btn-guest" onclick="openAuthModal()">
+    <div class="conn-dot" style="background:rgba(255,255,255,0.2);box-shadow:none;"></div><span id="authBtnLabel">SIGN IN</span>
+  </button>
+</div>
+
+<!-- Auth Modal -->
+<div id="authModal" class="auth-modal-overlay" style="display:none;" onclick="if(event.target===this) closeAuthModal()">
+  <div class="auth-modal">
+    <div class="auth-modal-header">
+      <span class="auth-modal-title">АВТОРИЗАЦИЯ</span>
+      <button class="auth-modal-close" onclick="closeAuthModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="auth-modal-body">
+      <div class="auth-modal-icon">👁️</div>
+      <p class="auth-modal-desc">Войдите чтобы создавать и сохранять свои рисунки и фразы в облаке</p>
+      <button class="auth-google-btn" onclick="window.triggerGoogleSignIn && window.triggerGoogleSignIn()">
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Войти через Google
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="connectionBadge" class="disconnected">
   <div class="conn-dot"></div>
   <span id="connLabel">OFFLINE</span>
+</div>
+
+<!-- Lease status banner -->
+<div id="leaseBanner">
+  <div class="lease-dot ctrl" id="leaseDot"></div>
+  <span id="leaseText">CONTROLLER</span>
+  <button id="leaseTakeBtn" style="display:none" onclick="window.tryTakeLease && window.tryTakeLease()">TAKE CONTROL</button>
+</div>
+
+<div id="toastContainer"></div>
+
+<!-- User dropdown menu -->
+<div id="userMenu">
+  <div class="user-menu-info">
+    <div class="user-menu-name" id="menuUserName">—</div>
+    <div class="user-menu-email" id="menuUserEmail">—</div>
+  </div>
+  <button class="user-menu-item danger" onclick="window.triggerSignOut && window.triggerSignOut()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Выйти
+  </button>
 </div>
 
 <div class="app">
@@ -300,7 +620,8 @@
           <button class="mode-btn" data-mode="text" onclick="setMode('text')"><span class="mode-icon">💬</span>TEXT</button>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="eyeCanvas"></canvas>
+          <div id="readonlyOverlay"></div>
+  <canvas id="eyeCanvas"></canvas>
           <div id="loadingBox"><div>Loading...</div><div class="loader-bar-wrap"><div class="loader-bar"></div></div></div>
           <div class="canvas-overlay-label" id="modeLabel">AUTO</div>
         </div>
@@ -310,6 +631,10 @@
             <button class="brush-btn" onclick="setBrushSize(5)" id="brushMedium"><div class="brush-dot dot-md"></div></button>
             <button class="brush-btn" onclick="setBrushSize(8)" id="brushLarge"><div class="brush-dot dot-lg"></div></button>
           </div>
+          <button id="eraserToggleBtn" class="eraser-btn" style="display:none;" onclick="toggleEraser()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 20H7L3 16l13.5-13.5a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L10 19"/><line x1="6" y1="14" x2="14" y2="14"/></svg>
+            ERASE
+          </button>
           <button class="clear-btn" onclick="clearContent()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             Clear
@@ -318,6 +643,8 @@
         <div id="infoText"></div>
       </div>
     </div>
+
+    <!-- MANUAL EYE STYLE PANEL -->
     <div id="panelPresetManual" class="presets-section" style="display:none;">
       <div class="presets-section-header"><span class="presets-section-title">СТИЛЬ ГЛАЗ</span></div>
       <div class="mode-grid">
@@ -327,10 +654,54 @@
         <button class="mode-btn manual-style-btn" data-style="sad" onclick="setManualEyeStyle('sad')"><span class="mode-icon">😢</span>SAD</button>
       </div>
     </div>
+
+    <!-- DRAW PRESETS PANEL -->
     <div id="panelPresetDraw" class="presets-section" style="display:none;">
       <div class="presets-section-header"><span class="presets-section-title">ЗАГОТОВКИ</span></div>
-      <div class="draw-presets-grid" id="drawPresetsGrid"></div>
+      <div id="drawPresetsLoading" class="draw-presets-skeleton">
+        <div class="skeleton-item"></div><div class="skeleton-item"></div>
+        <div class="skeleton-item"></div><div class="skeleton-item"></div>
+      </div>
+      <div class="draw-presets-grid" id="drawPresetsGrid" style="display:none;"></div>
+      <div id="drawPresetsEmpty" class="cloud-loading-msg" style="display:none;">Нет заготовок. Нарисуй и сохрани!</div>
     </div>
+
+    <!-- DRAW EDITOR PANEL -->
+    <div id="drawEditorPanel">
+      <div class="editor-header">
+        <div class="editor-title-wrap">
+          <input id="drawEditorNameInput" type="text" maxlength="20" placeholder="НАЗВАНИЕ..." />
+          <span class="editor-status" id="editorStatus">NEW</span>
+        </div>
+        <button class="editor-close-btn" onclick="closeDrawEditor()" title="Закрыть">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <canvas id="drawEditorCanvas"></canvas>
+      <div class="editor-toolbar">
+        <div class="editor-brush-group">
+          <button class="brush-btn active" onclick="setEditorBrushSize(2)" id="eBrushSm"><div class="brush-dot dot-sm"></div></button>
+          <button class="brush-btn" onclick="setEditorBrushSize(5)" id="eBrushMd"><div class="brush-dot dot-md"></div></button>
+          <button class="brush-btn" onclick="setEditorBrushSize(8)" id="eBrushLg"><div class="brush-dot dot-lg"></div></button>
+        </div>
+        <button id="editorEraserBtn" class="eraser-btn" onclick="toggleEditorEraser()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 20H7L3 16l13.5-13.5a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L10 19"/><line x1="6" y1="14" x2="14" y2="14"/></svg>
+          ERASE
+        </button>
+        <div class="editor-btn-group">
+          <button class="editor-btn danger" onclick="clearEditorCanvas()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            Очистить
+          </button>
+          <button class="editor-btn primary" id="savePresetBtn" onclick="saveDrawPreset()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEXT PRESETS PANEL -->
     <div id="panelPresetText" class="presets-section" style="display:none;">
       <div class="presets-section-header">
         <span class="presets-section-title">ФРАЗЫ</span>
@@ -348,8 +719,6 @@
 
   <!-- SENSORS TAB -->
   <div id="sensors" class="tab">
-
-    <!-- 3D MODEL TOGGLE BUTTON -->
     <div class="sensor-toggle-row">
       <button id="toggle3dBtn" class="graph-toggle-btn" onclick="toggle3DModel(this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -359,7 +728,6 @@
       </button>
     </div>
 
-    <!-- 3D MODEL CONTAINER -->
     <div id="model3dContainer" class="card">
       <div class="card-header">
         <span class="card-title">3D Model · Live Orientation</span>
@@ -367,14 +735,10 @@
       </div>
       <div id="model3dWrap">
         <canvas id="model3dCanvas"></canvas>
-        <!-- Loading overlay -->
         <div id="model3dOverlay">
           <div id="model3dLoadMsg">Загрузка модели...</div>
-          <div class="loader-bar-wrap">
-            <div class="loader-bar" id="model3dBar"></div>
-          </div>
+          <div class="loader-bar-wrap"><div class="loader-bar" id="model3dBar"></div></div>
         </div>
-        <!-- Bottom HUD -->
         <div class="model-status-row">
           <span class="model-axis-badge" id="modelAxisInfo">X:0° Y:0° Z:0°</span>
           <button class="model-reset-btn" onclick="resetModelOrientation()">↺ Reset</button>
@@ -463,6 +827,226 @@
   <p class="timestamp" id="timestamp">Last updated: —</p>
 </div>
 
+<!-- ================================================================
+     FIREBASE MODULE SCRIPT — Auth + per-user Firestore
+     ================================================================ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, updateDoc, setDoc, deleteDoc, doc,
+    orderBy, query, serverTimestamp, onSnapshot, getDoc
+  } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAG9r44OsA0avkaLK8UdUjsNRyS6Rg-hZw",
+    authDomain: "esp-eyes-presets.firebaseapp.com",
+    projectId: "esp-eyes-presets",
+    storageBucket: "esp-eyes-presets.firebasestorage.app",
+    messagingSenderId: "963729534980",
+    appId: "1:963729534980:web:e322073781fa5aeed38551",
+    measurementId: "G-VXVH34B2HB"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  let drawUnsub = null;
+  let textUnsub  = null;
+
+  // ================================================================
+  // CONTROL LEASE SYSTEM
+  // ================================================================
+  const LEASE_DOC      = doc(db, 'control', 'lease');
+  const LEASE_TTL_MS   = 25000;   // lease expires after 25s without heartbeat
+  const HEARTBEAT_MS   = 10000;   // send heartbeat every 10s
+  const SESSION_ID     = crypto.randomUUID();
+
+  let leaseUnsub     = null;
+  let heartbeatTimer = null;
+  let leaseState     = null; // current lease doc data
+
+  // Acquire or refresh lease
+  async function acquireLease(uid, displayName) {
+    const now = Date.now();
+    await setDoc(LEASE_DOC, {
+      uid,
+      sessionId: SESSION_ID,
+      displayName: displayName || uid.slice(0, 8),
+      acquiredAt: now,
+      expiresAt:  now + LEASE_TTL_MS
+    });
+  }
+
+  // Release lease only if we own it
+  async function releaseLease(uid) {
+    try {
+      const snap = await getDoc(LEASE_DOC);
+      if (snap.exists() && snap.data().uid === uid && snap.data().sessionId === SESSION_ID) {
+        await deleteDoc(LEASE_DOC);
+      }
+    } catch(e) { /* ignore */ }
+  }
+
+  // Heartbeat — keep lease alive while this tab is open
+  function startHeartbeat(uid, displayName) {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      // Only renew if we are the controller
+      if (window.isController) acquireLease(uid, displayName).catch(console.error);
+    }, HEARTBEAT_MS);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  // Subscribe to lease document
+  function subscribeLease(uid, displayName) {
+    if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
+      const now = Date.now();
+      if (!snap.exists() || snap.data().expiresAt < now) {
+        // Lease is free — grab it
+        await acquireLease(uid, displayName).catch(console.error);
+        return;
+      }
+      leaseState = snap.data();
+      const isMine = leaseState.uid === uid && leaseState.sessionId === SESSION_ID;
+      window.isController = isMine;
+      window.onLeaseChange(isMine, leaseState);
+    });
+  }
+
+  function unsubscribeLease() {
+    if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    stopHeartbeat();
+    window.isController = false;
+  }
+
+  // Exposed: try to forcibly take control
+  window.tryTakeLease = async () => {
+    const user = window.currentUser;
+    if (!user) return;
+    await acquireLease(user.uid, user.displayName || user.email).catch(console.error);
+  };
+
+  // Release on page close/refresh
+  window.addEventListener('beforeunload', () => {
+    const user = window.currentUser;
+    if (user) releaseLease(user.uid);
+    // Also fire synchronously via sendBeacon to be reliable
+    const payload = JSON.stringify({ uid: user?.uid, sessionId: SESSION_ID });
+    navigator.sendBeacon && navigator.sendBeacon('/dev/null'); // no server endpoint — just cleanup via beforeunload
+  });
+  // ================================================================
+
+  // ---- Per-user collection paths ----
+  const userDrawCol  = (uid) => collection(db, 'users', uid, 'draw_presets');
+  const userTextCol  = (uid) => collection(db, 'users', uid, 'text_presets');
+  const userDrawDoc  = (uid, id) => doc(db, 'users', uid, 'draw_presets', id);
+  const userTextDoc  = (uid, id) => doc(db, 'users', uid, 'text_presets', id);
+
+  // ---- Subscribe to user presets ----
+  function subscribeUserPresets(uid) {
+    // unsubscribe previous listeners
+    if (drawUnsub) { drawUnsub(); drawUnsub = null; }
+    if (textUnsub)  { textUnsub();  textUnsub  = null; }
+
+    const qDraw = query(userDrawCol(uid), orderBy('createdAt', 'asc'));
+    drawUnsub = onSnapshot(qDraw, (snap) => {
+      const presets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      window.onDrawPresetsLoaded(presets);
+    }, (err) => window.onDrawPresetsError(err));
+
+    const qText = query(userTextCol(uid), orderBy('createdAt', 'asc'));
+    textUnsub = onSnapshot(qText, (snap) => {
+      const presets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      window.onTextPresetsLoaded(presets);
+    }, console.error);
+  }
+
+  function unsubscribeAll() {
+    if (drawUnsub) { drawUnsub(); drawUnsub = null; }
+    if (textUnsub)  { textUnsub();  textUnsub  = null; }
+    window.onDrawPresetsLoaded([]);
+    window.onTextPresetsLoaded([]);
+  }
+
+  // ---- Auth state observer ----
+  onAuthStateChanged(auth, (user) => {
+    window.currentUser = user || null;
+    if (user) {
+      subscribeUserPresets(user.uid);
+      subscribeLease(user.uid, user.displayName || user.email);
+      startHeartbeat(user.uid, user.displayName || user.email);
+      window.onUserSignedIn(user);
+    } else {
+      if (window.currentUser) releaseLease(window.currentUser.uid).catch(()=>{});
+      unsubscribeAll();
+      unsubscribeLease();
+      window.isController = false;
+      window.onLeaseChange(false, null);
+      window.onUserSignedOut();
+    }
+  });
+
+  // ---- Exposed auth triggers ----
+  window.triggerGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      window.closeAuthModal();
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user')
+        window.showToast('Ошибка входа: ' + e.message, 'err');
+    }
+  };
+
+  window.triggerSignOut = async () => {
+    await signOut(auth);
+    window.closeUserMenu();
+  };
+
+  // ---- Draw preset CRUD (scoped to user) ----
+  window.fsAddDrawPreset = async (name, strokes) => {
+    const uid = window.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return await addDoc(userDrawCol(uid), { name, strokes, createdAt: serverTimestamp() });
+  };
+
+  window.fsUpdateDrawPreset = async (id, name, strokes) => {
+    const uid = window.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return await updateDoc(userDrawDoc(uid, id), { name, strokes, updatedAt: serverTimestamp() });
+  };
+
+  window.fsDeleteDrawPreset = async (id) => {
+    const uid = window.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return await deleteDoc(userDrawDoc(uid, id));
+  };
+
+  // ---- Text preset CRUD (scoped to user) ----
+  window.fsAddTextPreset = async (lang, text) => {
+    const uid = window.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return await addDoc(userTextCol(uid), { lang, text, createdAt: serverTimestamp() });
+  };
+
+  window.fsDeleteTextPreset = async (id) => {
+    const uid = window.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return await deleteDoc(userTextDoc(uid, id));
+  };
+</script>
+
+<!-- ================================================================
+     MAIN APP SCRIPT (classic, non-module — full access to DOM & globals)
+     ================================================================ -->
 <script>
 // ========== КОНФИГУРАЦИЯ ==========
 const ESP_IP = 'http://192.168.0.223';
@@ -472,428 +1056,43 @@ const EYE_WIDTH_DISP = 20;
 const EYE_HEIGHT_DISP = 28;
 const EYE_RADIUS_DISP = 4;
 const MIN_GAP_DISP = 5;
-
-// STL from Google Drive — direct download URL
 const STL_URL = './MONSTRIX_head.stl';
 
 // ========== 3D MODEL STATE ==========
-let three = {
-  renderer: null,
-  scene: null,
-  camera: null,
-  mesh: null,
-  animFrameId: null,
-  initialized: false,
-  loaded: false
-};
-
-// Complementary filter state
-let cf = {
-  pitch: 0,   // rotation around X (tilt forward/back)
-  roll: 0,    // rotation around Y (tilt left/right)
-  yaw: 0,     // rotation around Z (spin) — gyro only
-  lastTime: null,
-  alpha: 0.96  // complementary filter coefficient
-};
-
-let lastMpuData = { ax: 0, ay: 0, az: 1, gx: 0, gy: 0, gz: 0 };
+let three = { renderer:null, scene:null, camera:null, mesh:null, animFrameId:null, initialized:false, loaded:false };
+let cf = { pitch:0, roll:0, yaw:0, lastTime:null, alpha:0.96 };
+let lastMpuData = { ax:0, ay:0, az:1, gx:0, gy:0, gz:0 };
 let model3dVisible = false;
 
-// ========== TOGGLE 3D MODEL ==========
-function toggle3DModel(btn) {
-  const container = document.getElementById('model3dContainer');
-  model3dVisible = !model3dVisible;
-  container.style.display = model3dVisible ? 'block' : 'none';
-  btn.classList.toggle('open', model3dVisible);
-  btn.innerHTML = model3dVisible
-    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Hide 3D Model`
-    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Show 3D Model`;
+// ========== FIRESTORE CLOUD DATA ==========
+let cloudDrawPresets = [];   // [{id, name, strokes}]
+let cloudTextPresets = [];   // [{id, lang, text}]
 
-  if (model3dVisible && !three.initialized) {
-    init3DScene();
-  } else if (model3dVisible && three.initialized) {
-    resize3DCanvas();
-    if (!three.animFrameId) animate3D();
-  } else if (!model3dVisible && three.animFrameId) {
-    cancelAnimationFrame(three.animFrameId);
-    three.animFrameId = null;
-  }
+// Draw preset editor state
+let editorPresetId = null;    // null = new preset, string = existing id
+let editorStrokes = [];
+let editorCurrentStroke = null;
+let editorBrushSize = 2;
+let editorIsDrawing = false;
+let editorIsErasing = false;
+let editorUnsaved = false;
+
+// ========== TOAST ==========
+function showToast(msg, type = 'ok', ms = 2200) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(8px)';
+    t.style.transition = 'all 0.25s ease';
+    setTimeout(() => t.remove(), 300);
+  }, ms);
 }
 
-// ========== INIT THREE.JS SCENE ==========
-function init3DScene() {
-  three.initialized = true;
-  const wrap = document.getElementById('model3dWrap');
-  const canvas3d = document.getElementById('model3dCanvas');
-  const W = wrap.clientWidth;
-  const H = wrap.clientHeight;
-
-  // Renderer
-  three.renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true, alpha: false });
-  three.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  three.renderer.setSize(W, H);
-  three.renderer.setClearColor(0x000000, 1);
-
-  // Scene
-  three.scene = new THREE.Scene();
-
-  // Camera
-  three.camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 2000);
-  three.camera.position.set(0, 0, 300);
-
-  // Lights
-  const ambient = new THREE.AmbientLight(0x334455, 1.2);
-  three.scene.add(ambient);
-
-  const dirLight = new THREE.DirectionalLight(0x00ffb3, 1.8);
-  dirLight.position.set(1, 2, 3);
-  three.scene.add(dirLight);
-
-  const fillLight = new THREE.DirectionalLight(0x4466ff, 0.6);
-  fillLight.position.set(-2, -1, -1);
-  three.scene.add(fillLight);
-
-  // Grid helper (floor reference)
-  const gridHelper = new THREE.GridHelper(300, 20, 0x1a1a2e, 0x111122);
-  gridHelper.position.y = -80;
-  three.scene.add(gridHelper);
-
-  // Axis helper
-  const axesHelper = new THREE.AxesHelper(60);
-  three.scene.add(axesHelper);
-
-  // Load STL
-  loadSTLModel();
-
-  // Start render loop
-  animate3D();
-
-  window.addEventListener('resize', resize3DCanvas);
-}
-
-// ========== PARSE STL (binary + ascii) ==========
-function parseSTL(buffer) {
-  // Try binary first (starts after 80 byte header)
-  const view = new DataView(buffer);
-  const numTriangles = view.getUint32(80, true);
-  const expectedBinarySize = 84 + numTriangles * 50;
-
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
-  const normals = [];
-
-  if (buffer.byteLength === expectedBinarySize && numTriangles > 0) {
-    // Binary STL
-    let offset = 84;
-    for (let i = 0; i < numTriangles; i++) {
-      const nx = view.getFloat32(offset, true);
-      const ny = view.getFloat32(offset + 4, true);
-      const nz = view.getFloat32(offset + 8, true);
-      offset += 12;
-      for (let v = 0; v < 3; v++) {
-        positions.push(
-          view.getFloat32(offset, true),
-          view.getFloat32(offset + 4, true),
-          view.getFloat32(offset + 8, true)
-        );
-        normals.push(nx, ny, nz);
-        offset += 12;
-      }
-      offset += 2; // attribute byte count
-    }
-  } else {
-    // ASCII STL
-    const text = new TextDecoder().decode(buffer);
-    const vertexRegex = /vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
-    const normalRegex = /facet normal\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
-    let vMatch, nMatch;
-    const normalsArr = [];
-    while ((nMatch = normalRegex.exec(text)) !== null) {
-      normalsArr.push([parseFloat(nMatch[1]), parseFloat(nMatch[2]), parseFloat(nMatch[3])]);
-    }
-    let triIdx = 0;
-    let vCount = 0;
-    while ((vMatch = vertexRegex.exec(text)) !== null) {
-      positions.push(parseFloat(vMatch[1]), parseFloat(vMatch[2]), parseFloat(vMatch[3]));
-      if (normalsArr[triIdx]) normals.push(...normalsArr[triIdx]);
-      else normals.push(0, 0, 1);
-      vCount++;
-      if (vCount % 3 === 0) triIdx++;
-    }
-  }
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.computeVertexNormals(); // smooth out normals
-  return geometry;
-}
-
-// ========== LOAD STL FROM GOOGLE DRIVE VIA PROXY ==========
-function loadSTLModel() {
-  setModel3dStatus('LOADING...', false);
-  setModelOverlay('Загрузка модели...', 0);
-
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', STL_URL, true);
-  xhr.responseType = 'arraybuffer';
-
-  xhr.onprogress = (e) => {
-    if (e.lengthComputable) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      setModelOverlay(`Загрузка... ${pct}%`, pct);
-    } else {
-      setModelOverlay(`Загрузка... ${Math.round(e.loaded / 1024)} KB`, -1);
-    }
-  };
-
-  xhr.onload = () => {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        setModelOverlay('Обработка геометрии...', 95);
-        const geometry = parseSTL(xhr.response);
-        buildModel(geometry);
-      } catch(e) {
-        setModelOverlay('Ошибка парсинга STL', -2);
-        setModel3dStatus('PARSE ERROR', false);
-        console.error('STL parse error:', e);
-      }
-    } else {
-      setModelOverlay('Ошибка загрузки (' + xhr.status + ')', -2);
-      setModel3dStatus('LOAD ERROR', false);
-    }
-  };
-
-  xhr.onerror = () => {
-    setModelOverlay('Файл не найден. Проверь MONSTRIX_head.stl рядом с HTML', -2);
-    setModel3dStatus('NOT FOUND', false);
-    setTimeout(showPlaceholderModel, 2000);
-  };
-
-  xhr.send();
-}
-
-function loadSTLFallback() {
-  const directUrl = `https://drive.google.com/uc?export=download&id=${STL_FILE_ID}`;
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', directUrl, true);
-  xhr.responseType = 'arraybuffer';
-  xhr.onload = () => {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        const geometry = parseSTL(xhr.response);
-        buildModel(geometry);
-      } catch(e) {
-        showPlaceholderModel();
-      }
-    } else {
-      showPlaceholderModel();
-    }
-  };
-  xhr.onerror = () => showPlaceholderModel();
-  xhr.send();
-}
-
-function buildModel(geometry) {
-  // Center geometry
-  geometry.computeBoundingBox();
-  const box = geometry.boundingBox;
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  geometry.translate(-center.x, -center.y, -center.z);
-
-  // Scale to fit view
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const scale = 120 / maxDim;
-
-  const material = new THREE.MeshPhongMaterial({
-    color: 0x00ccff,
-    emissive: 0x002233,
-    specular: 0x00ffb3,
-    shininess: 60,
-    wireframe: false
-  });
-
-  three.mesh = new THREE.Mesh(geometry, material);
-  three.mesh.scale.setScalar(scale);
-
-  // MPU6050 horizontal → Z is up in real world, map to Three.js Y-up
-  // Initial rotation: flip so model faces camera naturally
-  three.mesh.rotation.x = -Math.PI / 2;
-
-  three.scene.add(three.mesh);
-  three.loaded = true;
-
-  hideModelOverlay();
-  setModel3dStatus('OK', true);
-}
-
-function showPlaceholderModel() {
-  // Fallback: show a stylized box as placeholder
-  const geo = new THREE.BoxGeometry(80, 50, 30);
-  const mat = new THREE.MeshPhongMaterial({
-    color: 0x00ccff, emissive: 0x001122,
-    specular: 0x00ffb3, shininess: 40, wireframe: false
-  });
-  three.mesh = new THREE.Mesh(geo, mat);
-
-  // Add wireframe overlay
-  const wfMat = new THREE.MeshBasicMaterial({ color: 0x00ffb3, wireframe: true, opacity: 0.15, transparent: true });
-  const wfMesh = new THREE.Mesh(geo, wfMat);
-  three.mesh.add(wfMesh);
-
-  three.scene.add(three.mesh);
-  three.loaded = true;
-
-  setModelOverlay('STL недоступен — показана заглушка', -2);
-  setTimeout(hideModelOverlay, 2500);
-  setModel3dStatus('PLACEHOLDER', false);
-}
-
-// ========== COMPLEMENTARY FILTER ==========
-function updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt) {
-  // Clamp dt to safe range
-  const safeDt = Math.max(0.001, Math.min(dt, 0.2));
-
-  // Normalize accelerometer
-  const accMag = Math.sqrt(ax*ax + ay*ay + az*az);
-  if (accMag < 0.5) return; // sensor dead or in freefall, skip
-  const axN = ax / accMag;
-  const ayN = ay / accMag;
-  const azN = az / accMag;
-
-  // Accel-derived angles (MPU6050 horizontal: Z points up toward ceiling)
-  // pitch = forward/back tilt, roll = left/right tilt
-  const accelPitch = Math.atan2(-axN, azN);
-  const accelRoll  = Math.atan2( ayN, azN);
-
-  // Complementary filter: trust gyro short-term, accel long-term
-  cf.pitch = cf.alpha * (cf.pitch + gy * safeDt) + (1 - cf.alpha) * accelPitch;
-  cf.roll  = cf.alpha * (cf.roll  + gx * safeDt) + (1 - cf.alpha) * accelRoll;
-  cf.yaw  += gz * safeDt; // pure gyro integration for yaw (no accel correction)
-}
-
-function applyOrientationToModel() {
-  if (!three.mesh) return;
-
-  // MPU6050 horizontal (Z up) → Three.js Y up
-  // Base: rotate -90° on X to stand model upright
-  // Then add sensor angles on top
-  three.mesh.rotation.order = 'YXZ';
-  three.mesh.rotation.x = -Math.PI / 2 + cf.pitch;
-  three.mesh.rotation.y = cf.yaw;
-  three.mesh.rotation.z = -cf.roll;
-
-  // Update HUD
-  const toDeg = r => Math.round(r * 180 / Math.PI);
-  document.getElementById('modelAxisInfo').textContent =
-    `P:${toDeg(cf.pitch)}° R:${toDeg(cf.roll)}° Y:${toDeg(cf.yaw)}°`;
-}
-
-function resetModelOrientation() {
-  cf.pitch = 0; cf.roll = 0; cf.yaw = 0; cf.lastTime = null;
-}
-
-// ========== UPDATE FROM SENSOR DATA ==========
-function updateModel3DFromSensor(data) {
-  if (!data.mpu_ok) return;
-
-  const ax = data.accel_x ?? 0;
-  const ay = data.accel_y ?? 0;
-  const az = data.accel_z ?? 0;
-  const gx = data.gyro_x ?? 0;
-  const gy = data.gyro_y ?? 0;
-  const gz = data.gyro_z ?? 0;
-
-  const now = performance.now() / 1000;
-  // On first call use small dt to let accel initialize angles cleanly
-  const dt = cf.lastTime ? (now - cf.lastTime) : 0.001;
-  cf.lastTime = now;
-
-  updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt);
-
-  // Apply to model if open and loaded
-  if (model3dVisible && three.loaded) {
-    applyOrientationToModel();
-  }
-
-  lastMpuData = { ax, ay, az, gx, gy, gz };
-}
-
-// ========== 3D RENDER LOOP ==========
-function animate3D() {
-  if (!model3dVisible) { three.animFrameId = null; return; }
-  three.animFrameId = requestAnimationFrame(animate3D);
-  if (three.renderer && three.scene && three.camera) {
-    three.renderer.render(three.scene, three.camera);
-  }
-}
-
-function resize3DCanvas() {
-  if (!three.renderer || !three.camera) return;
-  const wrap = document.getElementById('model3dWrap');
-  if (!wrap) return;
-  const W = wrap.clientWidth;
-  const H = wrap.clientHeight || 280;
-  three.renderer.setSize(W, H);
-  three.camera.aspect = W / H;
-  three.camera.updateProjectionMatrix();
-}
-
-// ========== UI HELPERS ==========
-function setModel3dStatus(text, ok) {
-  const el = document.getElementById('model3dStatus');
-  el.textContent = text;
-  el.className = ok ? 'status-ok' : 'status-err';
-}
-
-function setModelOverlay(msg, progress) {
-  const overlay = document.getElementById('model3dOverlay');
-  const msgEl = document.getElementById('model3dLoadMsg');
-  const bar = document.getElementById('model3dBar');
-  overlay.classList.remove('hidden');
-  msgEl.textContent = msg;
-  if (progress >= 0) bar.style.width = progress + '%';
-}
-
-function hideModelOverlay() {
-  const overlay = document.getElementById('model3dOverlay');
-  overlay.classList.add('hidden');
-}
-
-// ========== ОСТАЛЬНОЕ (без изменений) ==========
-let mode = "auto";
-let leftEyeDisp = { x: 40, y: 32, blink: false };
-let rightEyeDisp = { x: 88, y: 32, blink: false };
-let activeEyeDisp = null;
-let strokes = [];
-let currentStroke = null;
-let brushSize = 2;
-let isDrawing = false;
-let textObjects = [];
-let activeTextIndex = -1;
-let textDragOffset = { x: 0, y: 0 };
-const MAX_TEXT_LENGTH = 244;
-const MAX_CHARS_PER_LINE = 21;
-const TEXT_FONT_SIZE_DISP = 8;
-let tempTextarea = null;
-let charCounter = null;
-let dragStart = { x: 0, y: 0 };
-const dragThreshold = 5;
-let dragStarted = false;
-let lastSentState = '';
-let updateTimeout;
-let reconnectTimer = null;
-let isConnected = false;
-let chart;
-let historyLux = [], historyBmpTemp = [], historyPressure = [], historyAltitude = [];
-const MAX_HISTORY = 20;
-let curTab = 0;
-let selectedDrawPreset = -1;
-let currentLang = 'ru';
-let manualEyeStyle = 'default';
-
+// ========== BUILT-IN STATIC PRESETS (always shown, not deletable) ==========
 const DRAW_PRESETS = [
   { label: 'УЛЫБКА', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(Math.PI+t)),y:Math.round(38+18*Math.sin(Math.PI+t))}); return p; })() },{ size:3, points:[{x:48,y:24},{x:48,y:24}] },{ size:3, points:[{x:80,y:24},{x:80,y:24}] }] },
   { label: 'ГРУСТЬ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0.2;t<=Math.PI-0.2;t+=0.15) p.push({x:Math.round(64+28*Math.cos(t)),y:Math.round(46-18*Math.sin(t))}); return p; })() },{ size:3, points:[{x:48,y:22},{x:48,y:22}] },{ size:3, points:[{x:80,y:22},{x:80,y:22}] }] },
@@ -913,34 +1112,954 @@ const DRAW_PRESETS = [
   { label: 'СОЛНЦЕ', strokes: [{ size:2, points:(()=>{ const p=[]; for(let t=0;t<=Math.PI*2;t+=0.25) p.push({x:Math.round(64+12*Math.cos(t)),y:Math.round(32+12*Math.sin(t))}); return p; })() },{ size:2, points:(()=>{ const rays=[[0,-1],[0.7,-0.7],[1,0],[0.7,0.7],[0,1],[-0.7,0.7],[-1,0],[-0.7,-0.7]]; return rays.flatMap(([dx,dy])=>[{x:Math.round(64+16*dx),y:Math.round(32+16*dy)},{x:Math.round(64+24*dx),y:Math.round(32+24*dy)},{x:Math.round(64+16*dx),y:Math.round(32+16*dy)}]); })() }] },
 ];
 
-const TEXT_PRESETS = {
+const TEXT_PRESETS_STATIC = {
   ru: ['Привет!','Пока!','Спасибо','Пожалуйста','ОК','Ошибка!','Стоп','Вперёд','Ждите...','Загрузка','Готово!','Занят','Не трогай!','Тихо!','Смотри!','Осторожно','Я здесь','Иду...','Устал','Отдыхаю','Голоден','Хочу чай','Нет!','Да!','Помогите','Всё ок','Скучно','Весело!'],
   uk: ['Привіт!','Бувай!','Дякую','Будь ласка','Добре','Помилка!','Стоп','Вперед','Зачекайте','Завантаження','Готово!','Зайнятий','Не чіпай!','Тихо!','Дивись!','Обережно','Я тут','Іду...','Втомився','Відпочиваю','Голодний','Хочу каву','Ні!','Так!','Допоможіть','Все ок','Нудно','Весело!'],
   en: ['Hello!','Goodbye!','Thanks','Please','OK','Error!','Stop','Go!','Please wait','Loading...','Done!','Busy','Do not touch!','Be quiet!','Look!','Careful','I\'m here','Coming...','Tired','Resting','Hungry','Need coffee','No!','Yes!','Help me','All good','Bored','Having fun!']
 };
+
+// ========== AUTH STATE HANDLERS ==========
+window.currentUser = null;
+
+window.onUserSignedIn = function(user) {
+  const btn = document.getElementById('authBtn');
+  // Build avatar or initial
+  let avatarEl = '';
+  if (user.photoURL) {
+    avatarEl = `<img class="auth-avatar" src="${user.photoURL}" referrerpolicy="no-referrer" />`;
+  } else {
+    const initial = (user.displayName || user.email || '?')[0].toUpperCase();
+    avatarEl = `<div class="auth-avatar-placeholder">${initial}</div>`;
+  }
+  const displayName = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+  btn.className = 'auth-btn-user';
+  btn.innerHTML = `${avatarEl}<span id="authBtnLabel">${displayName}</span>`;
+  btn.onclick = () => toggleUserMenu(user);
+
+  document.getElementById('menuUserName').textContent = user.displayName || '—';
+  document.getElementById('menuUserEmail').textContent = user.email || '—';
+
+  updateAuthLocks(true);
+  showToast(`Добро пожаловать, ${displayName}!`, 'ok');
+};
+
+window.onUserSignedOut = function() {
+  const btn = document.getElementById('authBtn');
+  btn.className = 'auth-btn-guest';
+  btn.innerHTML = `<div class="conn-dot" style="background:rgba(255,255,255,0.2);box-shadow:none;"></div><span id="authBtnLabel">SIGN IN</span>`;
+  btn.onclick = () => openAuthModal();
+  updateAuthLocks(false);
+};
+
+function updateAuthLocks(isAuthed) {
+  // Lock/unlock add buttons
+  document.querySelectorAll('.draw-preset-add, .text-preset-add').forEach(el => {
+    if (isAuthed) {
+      el.classList.remove('auth-locked');
+      el.title = el.classList.contains('draw-preset-add') ? 'Создать новую заготовку' : 'Добавить фразу';
+    } else {
+      el.classList.add('auth-locked');
+      el.title = 'Войдите чтобы добавлять заготовки';
+    }
+  });
+  // Lock/unlock edit/delete on cloud presets
+  document.querySelectorAll('.preset-edit-btn, .preset-del-btn, .text-del-btn').forEach(el => {
+    el.style.display = isAuthed ? '' : 'none';
+  });
+}
+
+function openAuthModal() {
+  document.getElementById('authModal').style.display = 'flex';
+}
+
+function closeAuthModal() {
+  document.getElementById('authModal').style.display = 'none';
+}
+window.closeAuthModal = closeAuthModal;
+
+let userMenuOpen = false;
+function toggleUserMenu(user) {
+  userMenuOpen = !userMenuOpen;
+  document.getElementById('userMenu').classList.toggle('open', userMenuOpen);
+}
+function closeUserMenu() {
+  userMenuOpen = false;
+  document.getElementById('userMenu').classList.remove('open');
+}
+window.closeUserMenu = closeUserMenu;
+
+// Close user menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (userMenuOpen && !e.target.closest('#userMenu') && !e.target.closest('#authBadge')) {
+    closeUserMenu();
+  }
+});
+
+// Guard add buttons — show auth modal if not signed in
+function requireAuth(action) {
+  if (!window.currentUser) {
+    openAuthModal();
+    return false;
+  }
+  action();
+  return true;
+}
+
+// ========== CONTROL LEASE HANDLERS ==========
+window.isController = false;
+
+window.onLeaseChange = function(isMine, lease) {
+  const banner  = document.getElementById('leaseBanner');
+  const dot     = document.getElementById('leaseDot');
+  const text    = document.getElementById('leaseText');
+  const takeBtn = document.getElementById('leaseTakeBtn');
+  const overlay = document.getElementById('readonlyOverlay');
+
+  if (!window.currentUser) {
+    // Not logged in — hide banner, no control
+    banner.classList.remove('show');
+    overlay.classList.remove('show');
+    return;
+  }
+
+  banner.classList.add('show');
+
+  if (isMine) {
+    dot.className   = 'lease-dot ctrl';
+    text.innerHTML  = '<strong>CONTROLLER</strong>';
+    takeBtn.style.display = 'none';
+    overlay.classList.remove('show');
+  } else if (lease) {
+    const who = lease.displayName || 'другой пользователь';
+    dot.className   = 'lease-dot wait';
+    text.innerHTML  = `READ-ONLY &nbsp;·&nbsp; управляет <strong>${who}</strong>`;
+    takeBtn.style.display = '';
+    overlay.classList.add('show');
+  } else {
+    // No lease yet — acquiring
+    dot.className   = 'lease-dot wait';
+    text.innerHTML  = 'Получение управления...';
+    takeBtn.style.display = 'none';
+    overlay.classList.remove('show');
+  }
+};
+
+// ========== FIRESTORE CALLBACKS (called from module script) ==========
+window.onDrawPresetsLoaded = function(presets) {
+  cloudDrawPresets = presets;
+  renderDrawPresetsGrid();
+};
+
+window.onDrawPresetsError = function(err) {
+  document.getElementById('drawPresetsLoading').style.display = 'none';
+  // Static presets are always shown, just hide the cloud spinner
+  renderDrawPresetsGrid();
+};
+
+window.onTextPresetsLoaded = function(presets) {
+  cloudTextPresets = presets;
+  renderTextPresetsGrids();
+};
+
+// ========== RENDER DRAW PRESETS GRID ==========
+// Static presets are always first (no delete icon), cloud presets follow (with delete icon)
+function renderDrawPresetsGrid() {
+  const grid = document.getElementById('drawPresetsGrid');
+  const loading = document.getElementById('drawPresetsLoading');
+  const empty = document.getElementById('drawPresetsEmpty');
+  grid.innerHTML = '';
+  loading.style.display = 'none';
+  empty.style.display = 'none';
+  grid.style.display = 'grid';
+
+  // — Static built-in presets (no delete) —
+  DRAW_PRESETS.forEach((preset, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'draw-preset-btn';
+    btn.id = 'dp_static_' + i;
+    btn.onclick = () => applyStaticDrawPreset(preset, i);
+
+    btn.appendChild(makeThumbCanvas(preset.strokes || []));
+
+    const label = document.createElement('div');
+    label.className = 'draw-preset-label';
+    label.textContent = preset.label;
+    btn.appendChild(label);
+
+    grid.appendChild(btn);
+  });
+
+  // — Cloud presets (with delete icon) —
+  cloudDrawPresets.forEach(preset => {
+    const btn = document.createElement('div');
+    btn.className = 'draw-preset-btn';
+    btn.id = 'dp_' + preset.id;
+    btn.onclick = (e) => {
+      if (!e.target.closest('.preset-del-btn') && !e.target.closest('.preset-edit-btn'))
+        applyCloudDrawPreset(preset);
+    };
+
+    btn.appendChild(makeThumbCanvas(preset.strokes || []));
+
+    const label = document.createElement('div');
+    label.className = 'draw-preset-label';
+    label.textContent = preset.name || 'UNTITLED';
+    btn.appendChild(label);
+
+    // Edit button (pencil) — top left
+    const editBtn = document.createElement('button');
+    editBtn.className = 'preset-edit-btn';
+    editBtn.title = 'Редактировать';
+    editBtn.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    editBtn.onclick = (e) => { e.stopPropagation(); requireAuth(() => { applyCloudDrawPreset(preset); openDrawEditorExisting(preset); }); };
+    btn.appendChild(editBtn);
+
+    // Delete button — top right
+    const delBtn = document.createElement('button');
+    delBtn.className = 'preset-del-btn';
+    delBtn.title = 'Удалить';
+    delBtn.innerHTML = `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    delBtn.onclick = (e) => { e.stopPropagation(); deleteCloudDrawPreset(preset.id, preset.name); };
+    btn.appendChild(delBtn);
+
+    grid.appendChild(btn);
+  });
+
+  appendAddDrawButton(grid);
+  if (typeof updateAuthLocks !== 'undefined') updateAuthLocks(!!window.currentUser);
+}
+
+// Apply static (built-in) draw preset — loads into canvas but opens editor as "new" (save = create new cloud preset)
+function applyStaticDrawPreset(preset, index) {
+  if (mode !== 'draw') setMode('draw');
+  strokes = JSON.parse(JSON.stringify(preset.strokes));
+  currentStroke = null;
+  selectedDrawPreset = 'static_' + index;
+  document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById('dp_static_' + index);
+  if (el) el.classList.add('selected');
+  // Close editor — static presets are read-only
+  closeDrawEditor();
+  lastSentState = ''; sendUpdateToESP();
+}
+
+function appendAddDrawButton(grid) {
+  const addBtn = document.createElement('div');
+  addBtn.className = 'draw-preset-add';
+  addBtn.title = 'Создать новую заготовку';
+  addBtn.onclick = () => requireAuth(() => openDrawEditorNew());
+  addBtn.innerHTML = `
+    <div class="draw-preset-add-inner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <span class="draw-preset-add-label-row">NEW</span>
+  `;
+  grid.appendChild(addBtn);
+}
+
+// ========== APPLY CLOUD DRAW PRESET ==========
+function applyCloudDrawPreset(preset) {
+  if (mode !== 'draw') setMode('draw');
+  strokes = JSON.parse(JSON.stringify(preset.strokes || []));
+  currentStroke = null;
+  selectedDrawPreset = preset.id;
+  document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById('dp_' + preset.id);
+  if (el) el.classList.add('selected');
+  // Close editor on simple select — editor opens only via pencil icon
+  closeDrawEditor();
+  lastSentState = ''; sendUpdateToESP();
+}
+
+// ========== DELETE CLOUD DRAW PRESET ==========
+async function deleteCloudDrawPreset(id, name) {
+  if (!window.fsDeleteDrawPreset) { showToast('Firebase не готов', 'err'); return; }
+  try {
+    await window.fsDeleteDrawPreset(id);
+    showToast(`«${name || id}» удалено`, 'ok');
+    if (selectedDrawPreset === id) {
+      selectedDrawPreset = -1;
+      strokes = []; lastSentState = ''; sendUpdateToESP();
+      closeDrawEditor();
+    }
+  } catch(e) {
+    showToast('Ошибка удаления', 'err');
+    console.error(e);
+  }
+}
+
+// ========== DRAW PRESET EDITOR ==========
+const editorCanvas = document.getElementById('drawEditorCanvas');
+const editorCtx = editorCanvas.getContext('2d');
+
+function resizeEditorCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = editorCanvas.clientWidth || 400;
+  const cssH = editorCanvas.clientHeight || 160;
+  editorCanvas.width = Math.round(cssW * dpr);
+  editorCanvas.height = Math.round(cssH * dpr);
+  editorCanvas.style.width = cssW + 'px';
+  editorCanvas.style.height = cssH + 'px';
+  editorCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redrawEditorCanvas();
+}
+
+function openDrawEditorNew() {
+  editorPresetId = null;
+  editorStrokes = [];
+  editorCurrentStroke = null;
+  editorUnsaved = false;
+  editorIsErasing = false;
+  document.getElementById('drawEditorNameInput').value = '';
+  document.getElementById('editorStatus').textContent = 'NEW';
+  document.getElementById('editorStatus').className = 'editor-status';
+  document.getElementById('editorEraserBtn').classList.remove('active');
+  document.getElementById('drawEditorPanel').style.display = 'block';
+  document.getElementById('drawEditorPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(resizeEditorCanvas, 50);
+}
+
+function openDrawEditorExisting(preset) {
+  editorPresetId = preset.id;
+  editorStrokes = JSON.parse(JSON.stringify(preset.strokes || []));
+  editorCurrentStroke = null;
+  editorUnsaved = false;
+  editorIsErasing = false;
+  document.getElementById('drawEditorNameInput').value = preset.name || '';
+  document.getElementById('editorStatus').textContent = 'SYNCED';
+  document.getElementById('editorStatus').className = 'editor-status saved';
+  document.getElementById('editorEraserBtn').classList.remove('active');
+  document.getElementById('drawEditorPanel').style.display = 'block';
+  document.getElementById('drawEditorPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => { resizeEditorCanvas(); redrawEditorCanvas(); }, 50);
+}
+
+function closeDrawEditor() {
+  document.getElementById('drawEditorPanel').style.display = 'none';
+  editorPresetId = null;
+  editorStrokes = [];
+}
+
+function setEditorBrushSize(size) {
+  editorBrushSize = size;
+  editorIsErasing = false;
+  document.getElementById('editorEraserBtn').classList.remove('active');
+  document.getElementById('eBrushSm').classList.toggle('active', size === 2);
+  document.getElementById('eBrushMd').classList.toggle('active', size === 5);
+  document.getElementById('eBrushLg').classList.toggle('active', size === 8);
+}
+
+function toggleEditorEraser() {
+  editorIsErasing = !editorIsErasing;
+  document.getElementById('editorEraserBtn').classList.toggle('active', editorIsErasing);
+  document.getElementById('eBrushSm').classList.toggle('active', !editorIsErasing && editorBrushSize === 2);
+  document.getElementById('eBrushMd').classList.toggle('active', !editorIsErasing && editorBrushSize === 5);
+  document.getElementById('eBrushLg').classList.toggle('active', !editorIsErasing && editorBrushSize === 8);
+}
+
+function clearEditorCanvas() {
+  editorStrokes = [];
+  editorCurrentStroke = null;
+  editorUnsaved = true;
+  document.getElementById('editorStatus').textContent = 'UNSAVED';
+  document.getElementById('editorStatus').className = 'editor-status saving';
+  redrawEditorCanvas();
+}
+
+function editorCanvasToDisplay(cx, cy) {
+  return {
+    x: Math.round((cx / editorCanvas.clientWidth) * DISPLAY_W),
+    y: Math.round((cy / editorCanvas.clientHeight) * DISPLAY_H)
+  };
+}
+
+function redrawEditorCanvas() {
+  const w = editorCanvas.clientWidth, h = editorCanvas.clientHeight;
+  editorCtx.fillStyle = '#000';
+  editorCtx.fillRect(0, 0, w, h);
+
+  // Subtle grid hint
+  editorCtx.strokeStyle = 'rgba(0,255,179,0.04)';
+  editorCtx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += w/8) { editorCtx.beginPath(); editorCtx.moveTo(x,0); editorCtx.lineTo(x,h); editorCtx.stroke(); }
+  for (let y = 0; y < h; y += h/4) { editorCtx.beginPath(); editorCtx.moveTo(0,y); editorCtx.lineTo(w,y); editorCtx.stroke(); }
+
+  editorCtx.strokeStyle = '#fff';
+  editorCtx.fillStyle = '#fff';
+  editorCtx.lineCap = 'round';
+  editorCtx.lineJoin = 'round';
+
+  const allStrokes = [...editorStrokes, ...(editorCurrentStroke ? [editorCurrentStroke] : [])];
+  allStrokes.forEach(s => {
+    if (!s.points || s.points.length < 1) return;
+    const scaledSize = s.size * (editorCanvas.clientWidth / DISPLAY_W);
+    if (s.erase) {
+      editorCtx.save();
+      editorCtx.globalCompositeOperation = 'destination-out';
+      editorCtx.lineWidth = scaledSize * 2.5;
+      if (s.points.length === 1) {
+        editorCtx.fillStyle = 'rgba(0,0,0,1)';
+        editorCtx.beginPath();
+        const ep = editorDisplayToCanvas(s.points[0].x, s.points[0].y);
+        editorCtx.arc(ep.x, ep.y, scaledSize, 0, Math.PI*2);
+        editorCtx.fill();
+      } else {
+        editorCtx.strokeStyle = 'rgba(0,0,0,1)';
+        editorCtx.beginPath();
+        const f = editorDisplayToCanvas(s.points[0].x, s.points[0].y);
+        editorCtx.moveTo(f.x, f.y);
+        for (let i=1; i<s.points.length; i++) {
+          const p = editorDisplayToCanvas(s.points[i].x, s.points[i].y);
+          editorCtx.lineTo(p.x, p.y);
+        }
+        editorCtx.stroke();
+      }
+      editorCtx.restore();
+    } else {
+      editorCtx.lineWidth = scaledSize;
+      if (s.points.length === 1) {
+        const ep = editorDisplayToCanvas(s.points[0].x, s.points[0].y);
+        editorCtx.beginPath();
+        editorCtx.arc(ep.x, ep.y, scaledSize/2, 0, Math.PI*2);
+        editorCtx.fill();
+      } else {
+        editorCtx.beginPath();
+        const f = editorDisplayToCanvas(s.points[0].x, s.points[0].y);
+        editorCtx.moveTo(f.x, f.y);
+        for (let i=1; i<s.points.length; i++) {
+          const p = editorDisplayToCanvas(s.points[i].x, s.points[i].y);
+          editorCtx.lineTo(p.x, p.y);
+        }
+        editorCtx.stroke();
+      }
+    }
+  });
+}
+
+function editorDisplayToCanvas(dx, dy) {
+  return { x: (dx / DISPLAY_W) * editorCanvas.clientWidth, y: (dy / DISPLAY_H) * editorCanvas.clientHeight };
+}
+
+function getEditorPos(evt) {
+  const rect = editorCanvas.getBoundingClientRect();
+  const cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const cy = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return { x: cx - rect.left, y: cy - rect.top };
+}
+
+editorCanvas.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  editorIsDrawing = true;
+  const cp = getEditorPos(e);
+  const dp = editorCanvasToDisplay(cp.x, cp.y);
+  editorCurrentStroke = { points: [dp], size: editorBrushSize, erase: editorIsErasing };
+  document.getElementById('editorStatus').textContent = 'EDITING';
+  document.getElementById('editorStatus').className = 'editor-status saving';
+});
+
+editorCanvas.addEventListener('mousemove', (e) => {
+  e.preventDefault();
+  if (!editorIsDrawing || !editorCurrentStroke) return;
+  const cp = getEditorPos(e);
+  const dp = editorCanvasToDisplay(cp.x, cp.y);
+  editorCurrentStroke.points.push(dp);
+  redrawEditorCanvas();
+});
+
+editorCanvas.addEventListener('mouseup', (e) => {
+  e.preventDefault();
+  if (editorCurrentStroke && editorCurrentStroke.points.length > 0) {
+    editorStrokes.push(editorCurrentStroke);
+    if (editorStrokes.length > 200) editorStrokes.shift();
+  }
+  editorCurrentStroke = null;
+  editorIsDrawing = false;
+  editorUnsaved = true;
+  redrawEditorCanvas();
+});
+
+editorCanvas.addEventListener('mouseleave', (e) => {
+  if (editorIsDrawing && editorCurrentStroke) {
+    editorStrokes.push(editorCurrentStroke);
+    editorCurrentStroke = null;
+    editorIsDrawing = false;
+    editorUnsaved = true;
+    redrawEditorCanvas();
+  }
+});
+
+editorCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); editorIsDrawing = true; const cp = getEditorPos(e); const dp = editorCanvasToDisplay(cp.x, cp.y); editorCurrentStroke = { points:[dp], size:editorBrushSize, erase:editorIsErasing }; document.getElementById('editorStatus').textContent = 'EDITING'; document.getElementById('editorStatus').className = 'editor-status saving'; }, { passive:false });
+editorCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!editorIsDrawing || !editorCurrentStroke) return; const cp = getEditorPos(e); const dp = editorCanvasToDisplay(cp.x, cp.y); editorCurrentStroke.points.push(dp); redrawEditorCanvas(); }, { passive:false });
+editorCanvas.addEventListener('touchend', (e) => { e.preventDefault(); if (editorCurrentStroke && editorCurrentStroke.points.length>0) editorStrokes.push(editorCurrentStroke); editorCurrentStroke = null; editorIsDrawing = false; editorUnsaved = true; redrawEditorCanvas(); });
+editorCanvas.addEventListener('touchcancel', (e) => { editorCurrentStroke = null; editorIsDrawing = false; });
+
+// ========== SAVE DRAW PRESET TO FIRESTORE ==========
+async function saveDrawPreset() {
+  if (!window.fsAddDrawPreset) { showToast('Firebase не готов', 'err'); return; }
+  const nameInput = document.getElementById('drawEditorNameInput');
+  const name = (nameInput.value || '').trim().toUpperCase() || 'UNTITLED';
+  nameInput.value = name;
+
+  const btn = document.getElementById('savePresetBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="mini-spinner"></div> Сохранение`;
+
+  // Serialize strokes — remove 'erase' strokes since on ESP they won't make sense
+  // We flatten erase into the geometry by only saving visible pixels via final raster approach
+  // For simplicity we store strokes as-is (including erase flags) — rendering handles it
+  // Firestore does not support nested arrays — store points as {x, y} objects
+  const strokesToSave = editorStrokes.map(s => ({
+    points: s.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+    size: s.size,
+    erase: s.erase || false
+  }));
+
+  const statusEl = document.getElementById('editorStatus');
+
+  try {
+    if (editorPresetId) {
+      // Update existing
+      await window.fsUpdateDrawPreset(editorPresetId, name, strokesToSave);
+      showToast(`«${name}» обновлено ✓`, 'ok');
+    } else {
+      // Create new
+      const docRef = await window.fsAddDrawPreset(name, strokesToSave);
+      editorPresetId = docRef.id;
+      showToast(`«${name}» сохранено ✓`, 'ok');
+    }
+    editorUnsaved = false;
+    statusEl.textContent = 'SYNCED';
+    statusEl.className = 'editor-status saved';
+  } catch(e) {
+    showToast('Ошибка сохранения', 'err');
+    console.error(e);
+    statusEl.textContent = 'ERROR';
+    statusEl.className = 'editor-status';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Сохранить`;
+  }
+}
+
+// ========== MAKE THUMBNAIL ==========
+// Renders strokes into offscreen canvas, returns <img> via dataURL.
+// This avoids the CSS vs canvas-attribute size conflict that causes
+// the second-column thumbnail to render at wrong dimensions.
+function makeThumbCanvas(strokes) {
+  const off = document.createElement('canvas');
+  off.width = 128; off.height = 64;
+  renderStrokesToCanvas(off, strokes, '#00ffb3');
+  const img = document.createElement('img');
+  // Set intrinsic size attrs so browser reserves correct space before paint (no reflow)
+  img.width = 128;
+  img.height = 64;
+  img.src = off.toDataURL();
+  return img;
+}
+
+// ========== RENDER STROKES TO CANVAS (thumbnail) ==========
+function renderStrokesToCanvas(canvas, strokes, color) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
+  strokes.forEach(s => {
+    const pts = (s.points || []).map(p => Array.isArray(p) ? { x:p[0], y:p[1] } : p);
+    if (pts.length < 1) return;
+    if (s.erase) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = s.size * 2.5 * (canvas.width/DISPLAY_W);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (pts.length === 1) { ctx.beginPath(); ctx.arc(pts[0].x * (canvas.width/DISPLAY_W), pts[0].y * (canvas.height/DISPLAY_H), s.size, 0, Math.PI*2); ctx.fill(); }
+      else { ctx.beginPath(); ctx.moveTo(pts[0].x * (canvas.width/DISPLAY_W), pts[0].y * (canvas.height/DISPLAY_H)); for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x * (canvas.width/DISPLAY_W), pts[i].y * (canvas.height/DISPLAY_H)); ctx.stroke(); }
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = color; ctx.fillStyle = color;
+      ctx.lineWidth = s.size * (canvas.width/DISPLAY_W) * 1.2;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (pts.length === 1) { ctx.beginPath(); ctx.arc(pts[0].x * (canvas.width/DISPLAY_W), pts[0].y * (canvas.height/DISPLAY_H), s.size/2, 0, Math.PI*2); ctx.fill(); }
+      else { ctx.beginPath(); ctx.moveTo(pts[0].x * (canvas.width/DISPLAY_W), pts[0].y * (canvas.height/DISPLAY_H)); for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x * (canvas.width/DISPLAY_W), pts[i].y * (canvas.height/DISPLAY_H)); ctx.stroke(); }
+    }
+  });
+}
+
+// ========== RENDER TEXT PRESETS ==========
+function renderTextPresetsGrids() {
+  ['ru','uk','en'].forEach(lang => {
+    const containerId = 'textPresets' + lang.charAt(0).toUpperCase() + lang.slice(1);
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    // — Static built-in phrases (no delete icon) —
+    (TEXT_PRESETS_STATIC[lang] || []).forEach((text, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'text-preset-btn';
+      btn.id = `tp_static_${lang}_${i}`;
+      btn.onclick = () => applyStaticTextPreset(text, lang, i);
+
+      const preview = document.createElement('span');
+      preview.className = 'text-preset-preview';
+      preview.textContent = text;
+      btn.appendChild(preview);
+
+      container.appendChild(btn);
+    });
+
+    // — Cloud phrases (with delete icon) —
+    cloudTextPresets.filter(p => p.lang === lang).forEach(preset => {
+      const btn = document.createElement('div');
+      btn.className = 'text-preset-btn';
+      btn.id = `tp_${preset.id}`;
+      btn.onclick = (e) => { if (!e.target.closest('.text-del-btn')) applyCloudTextPreset(preset); };
+
+      const preview = document.createElement('span');
+      preview.className = 'text-preset-preview';
+      preview.textContent = preset.text || '';
+      btn.appendChild(preview);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'text-del-btn';
+      delBtn.title = 'Удалить';
+      delBtn.innerHTML = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteCloudTextPreset(preset.id, preset.text); };
+      btn.appendChild(delBtn);
+
+      container.appendChild(btn);
+    });
+
+    // — Add (+) button at end —
+    const addBtn = document.createElement('div');
+    addBtn.className = 'text-preset-add';
+    addBtn.id = `textAdd_${lang}`;
+    addBtn.title = 'Добавить фразу';
+    addBtn.onclick = () => requireAuth(() => showAddTextInput(lang));
+    addBtn.innerHTML = `
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      ДОБАВИТЬ
+    `;
+    container.appendChild(addBtn);
+  });
+  // Re-apply auth lock state
+  if (typeof updateAuthLocks !== 'undefined') updateAuthLocks(!!window.currentUser);
+}
+
+// Apply static (built-in) text preset
+function applyStaticTextPreset(text, lang, index) {
+  if (mode !== 'text') setMode('text');
+  removeTempInput();
+  textObjects = [{ lines: wrapText(text, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP }];
+  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById(`tp_static_${lang}_${index}`);
+  if (el) el.classList.add('selected');
+  lastSentState = ''; sendUpdateToESP();
+}
+
+// ========== ADD TEXT PRESET INLINE ==========
+let textAddActive = false;
+
+function showAddTextInput(lang) {
+  if (textAddActive) return;
+  textAddActive = true;
+  const containerId = 'textPresets' + lang.charAt(0).toUpperCase() + lang.slice(1);
+  const container = document.getElementById(containerId);
+  const addBtn = document.getElementById(`textAdd_${lang}`);
+
+  const row = document.createElement('div');
+  row.className = 'text-add-inline';
+  row.id = 'textAddRow';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'text-add-input';
+  input.placeholder = 'Новая фраза...';
+  input.maxLength = 80;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'text-add-confirm';
+  confirmBtn.textContent = 'OK';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'text-add-cancel';
+  cancelBtn.innerHTML = '×';
+
+  row.appendChild(input);
+  row.appendChild(confirmBtn);
+  row.appendChild(cancelBtn);
+
+  container.insertBefore(row, addBtn);
+  input.focus();
+
+  const finish = async () => {
+    const text = input.value.trim();
+    if (text && window.fsAddTextPreset) {
+      confirmBtn.innerHTML = '<div class="mini-spinner"></div>';
+      confirmBtn.disabled = true;
+      try {
+        await window.fsAddTextPreset(lang, text);
+        showToast(`«${text}» добавлено`, 'ok');
+      } catch(e) {
+        showToast('Ошибка сохранения', 'err');
+      }
+    }
+    row.remove();
+    textAddActive = false;
+  };
+
+  const cancel = () => { row.remove(); textAddActive = false; };
+
+  confirmBtn.onclick = finish;
+  cancelBtn.onclick = cancel;
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') finish();
+    if (e.key === 'Escape') cancel();
+  });
+}
+
+// ========== APPLY CLOUD TEXT PRESET ==========
+function applyCloudTextPreset(preset) {
+  if (mode !== 'text') setMode('text');
+  removeTempInput();
+  textObjects = [{ lines: wrapText(preset.text || '', MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP }];
+  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById(`tp_${preset.id}`);
+  if (el) el.classList.add('selected');
+  lastSentState = ''; sendUpdateToESP();
+}
+
+// ========== DELETE CLOUD TEXT PRESET ==========
+async function deleteCloudTextPreset(id, text) {
+  if (!window.fsDeleteTextPreset) { showToast('Firebase не готов', 'err'); return; }
+  try {
+    await window.fsDeleteTextPreset(id);
+    showToast(`«${text}» удалено`, 'ok');
+  } catch(e) {
+    showToast('Ошибка удаления', 'err');
+    console.error(e);
+  }
+}
+
+// ========== 3D MODEL ==========
+function toggle3DModel(btn) {
+  const container = document.getElementById('model3dContainer');
+  model3dVisible = !model3dVisible;
+  container.style.display = model3dVisible ? 'block' : 'none';
+  btn.classList.toggle('open', model3dVisible);
+  btn.innerHTML = model3dVisible
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Hide 3D Model`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Show 3D Model`;
+  if (model3dVisible && !three.initialized) init3DScene();
+  else if (model3dVisible && three.initialized) { resize3DCanvas(); if (!three.animFrameId) animate3D(); }
+  else if (!model3dVisible && three.animFrameId) { cancelAnimationFrame(three.animFrameId); three.animFrameId = null; }
+}
+
+function init3DScene() {
+  three.initialized = true;
+  const wrap = document.getElementById('model3dWrap');
+  const canvas3d = document.getElementById('model3dCanvas');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  three.renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true, alpha: false });
+  three.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  three.renderer.setSize(W, H);
+  three.renderer.setClearColor(0x000000, 1);
+  three.scene = new THREE.Scene();
+  three.camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 2000);
+  three.camera.position.set(0, 0, 300);
+  three.scene.add(new THREE.AmbientLight(0x334455, 1.2));
+  const dl = new THREE.DirectionalLight(0x00ffb3, 1.8); dl.position.set(1, 2, 3); three.scene.add(dl);
+  const fl = new THREE.DirectionalLight(0x4466ff, 0.6); fl.position.set(-2, -1, -1); three.scene.add(fl);
+  const gh = new THREE.GridHelper(300, 20, 0x1a1a2e, 0x111122); gh.position.y = -80; three.scene.add(gh);
+  three.scene.add(new THREE.AxesHelper(60));
+  loadSTLModel();
+  animate3D();
+  window.addEventListener('resize', resize3DCanvas);
+}
+
+function parseSTL(buffer) {
+  const view = new DataView(buffer);
+  const numTriangles = view.getUint32(80, true);
+  const expectedBinarySize = 84 + numTriangles * 50;
+  const geometry = new THREE.BufferGeometry();
+  const positions = [], normals = [];
+  if (buffer.byteLength === expectedBinarySize && numTriangles > 0) {
+    let offset = 84;
+    for (let i = 0; i < numTriangles; i++) {
+      const nx = view.getFloat32(offset, true), ny = view.getFloat32(offset+4, true), nz = view.getFloat32(offset+8, true);
+      offset += 12;
+      for (let v = 0; v < 3; v++) { positions.push(view.getFloat32(offset,true), view.getFloat32(offset+4,true), view.getFloat32(offset+8,true)); normals.push(nx,ny,nz); offset += 12; }
+      offset += 2;
+    }
+  } else {
+    const text = new TextDecoder().decode(buffer);
+    const vRe = /vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    const nRe = /facet normal\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    let vM, nM; const na = [];
+    while ((nM = nRe.exec(text)) !== null) na.push([parseFloat(nM[1]),parseFloat(nM[2]),parseFloat(nM[3])]);
+    let ti = 0, vc = 0;
+    while ((vM = vRe.exec(text)) !== null) { positions.push(parseFloat(vM[1]),parseFloat(vM[2]),parseFloat(vM[3])); if (na[ti]) normals.push(...na[ti]); else normals.push(0,0,1); vc++; if (vc%3===0) ti++; }
+  }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function loadSTLModel() {
+  setModel3dStatus('LOADING...', false);
+  setModelOverlay('Загрузка модели...', 0);
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', STL_URL, true);
+  xhr.responseType = 'arraybuffer';
+  xhr.onprogress = (e) => { if (e.lengthComputable) setModelOverlay(`Загрузка... ${Math.round(e.loaded/e.total*100)}%`, Math.round(e.loaded/e.total*100)); };
+  xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) { try { setModelOverlay('Обработка...', 95); const g = parseSTL(xhr.response); buildModel(g); } catch(e) { setModelOverlay('Ошибка парсинга', -2); setModel3dStatus('ERROR', false); } } else { setModelOverlay('Ошибка загрузки', -2); setModel3dStatus('ERROR', false); } };
+  xhr.onerror = () => { setModelOverlay('STL не найден', -2); setModel3dStatus('NOT FOUND', false); setTimeout(showPlaceholderModel, 2000); };
+  xhr.send();
+}
+
+function buildModel(geometry) {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const center = new THREE.Vector3(); box.getCenter(center);
+  geometry.translate(-center.x, -center.y, -center.z);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const scale = 120 / Math.max(size.x, size.y, size.z);
+  const mat = new THREE.MeshPhongMaterial({ color:0x00ccff, emissive:0x002233, specular:0x00ffb3, shininess:60 });
+  three.mesh = new THREE.Mesh(geometry, mat);
+  three.mesh.scale.setScalar(scale);
+  three.mesh.rotation.x = -Math.PI / 2;
+  three.scene.add(three.mesh);
+  three.loaded = true;
+  hideModelOverlay();
+  setModel3dStatus('OK', true);
+}
+
+function showPlaceholderModel() {
+  const geo = new THREE.BoxGeometry(80, 50, 30);
+  const mat = new THREE.MeshPhongMaterial({ color:0x00ccff, emissive:0x001122, specular:0x00ffb3, shininess:40 });
+  three.mesh = new THREE.Mesh(geo, mat);
+  const wf = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color:0x00ffb3, wireframe:true, opacity:0.15, transparent:true }));
+  three.mesh.add(wf);
+  three.scene.add(three.mesh);
+  three.loaded = true;
+  setModelOverlay('STL недоступен', -2);
+  setTimeout(hideModelOverlay, 2500);
+  setModel3dStatus('PLACEHOLDER', false);
+}
+
+function updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt) {
+  const safeDt = Math.max(0.001, Math.min(dt, 0.2));
+  const accMag = Math.sqrt(ax*ax+ay*ay+az*az);
+  if (accMag < 0.5) return;
+  const axN=ax/accMag, ayN=ay/accMag, azN=az/accMag;
+  const accelPitch = Math.atan2(-axN, azN);
+  const accelRoll  = Math.atan2( ayN, azN);
+  cf.pitch = cf.alpha*(cf.pitch+gy*safeDt)+(1-cf.alpha)*accelPitch;
+  cf.roll  = cf.alpha*(cf.roll +gx*safeDt)+(1-cf.alpha)*accelRoll;
+  cf.yaw  += gz*safeDt;
+}
+
+function applyOrientationToModel() {
+  if (!three.mesh) return;
+  three.mesh.rotation.order = 'YXZ';
+  three.mesh.rotation.x = -Math.PI/2 + cf.pitch;
+  three.mesh.rotation.y = cf.yaw;
+  three.mesh.rotation.z = -cf.roll;
+  const d = r => Math.round(r*180/Math.PI);
+  document.getElementById('modelAxisInfo').textContent = `P:${d(cf.pitch)}° R:${d(cf.roll)}° Y:${d(cf.yaw)}°`;
+}
+
+function resetModelOrientation() { cf.pitch=0; cf.roll=0; cf.yaw=0; cf.lastTime=null; }
+
+function updateModel3DFromSensor(data) {
+  if (!data.mpu_ok) return;
+  const ax=data.accel_x??0, ay=data.accel_y??0, az=data.accel_z??0;
+  const gx=data.gyro_x??0, gy=data.gyro_y??0, gz=data.gyro_z??0;
+  const now = performance.now()/1000;
+  const dt = cf.lastTime ? (now-cf.lastTime) : 0.001;
+  cf.lastTime = now;
+  updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt);
+  if (model3dVisible && three.loaded) applyOrientationToModel();
+  lastMpuData = { ax, ay, az, gx, gy, gz };
+}
+
+function animate3D() {
+  if (!model3dVisible) { three.animFrameId = null; return; }
+  three.animFrameId = requestAnimationFrame(animate3D);
+  if (three.renderer && three.scene && three.camera) three.renderer.render(three.scene, three.camera);
+}
+
+function resize3DCanvas() {
+  if (!three.renderer || !three.camera) return;
+  const wrap = document.getElementById('model3dWrap');
+  if (!wrap) return;
+  const W=wrap.clientWidth, H=wrap.clientHeight||280;
+  three.renderer.setSize(W, H);
+  three.camera.aspect = W/H;
+  three.camera.updateProjectionMatrix();
+}
+
+function setModel3dStatus(text, ok) {
+  const el = document.getElementById('model3dStatus');
+  el.textContent = text;
+  el.className = ok ? 'status-ok' : 'status-err';
+}
+
+function setModelOverlay(msg, progress) {
+  const overlay = document.getElementById('model3dOverlay');
+  document.getElementById('model3dLoadMsg').textContent = msg;
+  overlay.classList.remove('hidden');
+  if (progress >= 0) document.getElementById('model3dBar').style.width = progress + '%';
+}
+
+function hideModelOverlay() { document.getElementById('model3dOverlay').classList.add('hidden'); }
+
+// ========== MAIN EYE CANVAS ==========
+let mode = "auto";
+let leftEyeDisp = { x:40, y:32, blink:false };
+let rightEyeDisp = { x:88, y:32, blink:false };
+let activeEyeDisp = null;
+let strokes = [];
+let currentStroke = null;
+let brushSize = 2;
+let isDrawing = false;
+let isErasing = false;
+let textObjects = [];
+let activeTextIndex = -1;
+let textDragOffset = { x:0, y:0 };
+const MAX_TEXT_LENGTH = 244;
+const MAX_CHARS_PER_LINE = 21;
+const TEXT_FONT_SIZE_DISP = 8;
+let tempTextarea = null, charCounter = null;
+let dragStart = { x:0, y:0 };
+const dragThreshold = 5;
+let dragStarted = false;
+let lastSentState = '';
+let updateTimeout;
+let reconnectTimer = null;
+let isConnected = false;
+let chart;
+let historyLux=[], historyBmpTemp=[], historyPressure=[], historyAltitude=[];
+const MAX_HISTORY = 20;
+let curTab = 0;
+let selectedDrawPreset = -1;
+let currentLang = 'ru';
+let manualEyeStyle = 'default';
 
 const canvas = document.getElementById('eyeCanvas');
 const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || 400;
-  const cssH = canvas.clientHeight || 200;
-  canvas.width = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssH * dpr);
-  canvas.style.width = cssW + 'px';
-  canvas.style.height = cssH + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cssW = canvas.clientWidth || 400, cssH = canvas.clientHeight || 200;
+  canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
+  canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-function canvasToDisplay(cx, cy) {
-  return { x: Math.round((cx / canvas.clientWidth) * DISPLAY_W), y: Math.round((cy / canvas.clientHeight) * DISPLAY_H) };
-}
-function displayToCanvas(dx, dy) {
-  return { x: (dx / DISPLAY_W) * canvas.clientWidth, y: (dy / DISPLAY_H) * canvas.clientHeight };
-}
+function canvasToDisplay(cx, cy) { return { x: Math.round((cx/canvas.clientWidth)*DISPLAY_W), y: Math.round((cy/canvas.clientHeight)*DISPLAY_H) }; }
+function displayToCanvas(dx, dy) { return { x: (dx/DISPLAY_W)*canvas.clientWidth, y: (dy/DISPLAY_H)*canvas.clientHeight }; }
 
 function pillPos() {
   const nav = document.getElementById('navTrack');
@@ -956,160 +2075,98 @@ function pillPos() {
 function switchTab(index, btn) {
   if (index === curTab) return;
   curTab = index;
-  const tabIds = ['eyes', 'sensors', 'esp'];
+  const tabIds = ['eyes','sensors','esp'];
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(tabIds[index]).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   pillPos();
   if (index === 0) setTimeout(resizeCanvas, 50);
-  if (index === 1 && model3dVisible && three.initialized) {
-    setTimeout(resize3DCanvas, 50);
-    if (!three.animFrameId) animate3D();
-  }
+  if (index === 1 && model3dVisible && three.initialized) { setTimeout(resize3DCanvas, 50); if (!three.animFrameId) animate3D(); }
 }
 
 function updateManualStyleUI() {
-  document.querySelectorAll('.manual-style-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.style === manualEyeStyle);
-  });
+  document.querySelectorAll('.manual-style-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.style === manualEyeStyle));
 }
 
 function setManualEyeStyle(style) {
   if (!['default','angry','happy','sad'].includes(style)) return;
-  manualEyeStyle = style;
-  updateManualStyleUI();
-  lastSentState = '';
-  sendUpdateToESP();
+  manualEyeStyle = style; updateManualStyleUI();
+  lastSentState = ''; sendUpdateToESP();
 }
 
 function switchLang(lang) {
   currentLang = lang;
-  document.querySelectorAll('.lang-tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['ru','uk','en'][i] === lang);
-  });
-  ['ru','uk','en'].forEach(l => {
-    document.getElementById('langPanel' + l.charAt(0).toUpperCase() + l.slice(1)).classList.toggle('active', l === lang);
-  });
+  document.querySelectorAll('.lang-tab-btn').forEach((b,i) => b.classList.toggle('active', ['ru','uk','en'][i] === lang));
+  ['ru','uk','en'].forEach(l => { document.getElementById('langPanel'+l.charAt(0).toUpperCase()+l.slice(1)).classList.toggle('active', l===lang); });
 }
 
-function renderPresetThumb(presetIndex) {
-  const preset = DRAW_PRESETS[presetIndex];
-  const grid = document.getElementById('drawPresetsGrid');
-  const btn = document.createElement('div');
-  btn.className = 'draw-preset-btn';
-  btn.onclick = () => applyDrawPreset(presetIndex);
-  const thumbCanvas = document.createElement('canvas');
-  thumbCanvas.width = 128; thumbCanvas.height = 64;
-  btn.appendChild(thumbCanvas);
-  const label = document.createElement('div');
-  label.className = 'draw-preset-label';
-  label.textContent = preset.label;
-  btn.appendChild(label);
-  btn.id = 'drawPreset_' + presetIndex;
-  grid.appendChild(btn);
-  const tc = thumbCanvas.getContext('2d');
-  tc.fillStyle = '#000'; tc.fillRect(0,0,128,64);
-  tc.strokeStyle = '#00ffb3'; tc.lineCap = 'round'; tc.lineJoin = 'round';
-  preset.strokes.forEach(s => {
-    if (!s.points || s.points.length < 1) return;
-    tc.lineWidth = s.size * 1.2;
-    tc.beginPath(); tc.moveTo(s.points[0].x, s.points[0].y);
-    if (s.points.length === 1) { tc.arc(s.points[0].x, s.points[0].y, s.size/2, 0, Math.PI*2); tc.fill(); }
-    else { for (let i=1; i<s.points.length; i++) tc.lineTo(s.points[i].x, s.points[i].y); tc.stroke(); }
-  });
-}
-
-function applyDrawPreset(index) {
-  if (mode !== 'draw') setMode('draw');
-  selectedDrawPreset = index;
-  strokes = JSON.parse(JSON.stringify(DRAW_PRESETS[index].strokes));
-  currentStroke = null;
-  document.querySelectorAll('.draw-preset-btn').forEach((b,i) => b.classList.toggle('selected', i === index));
-  lastSentState = ''; sendUpdateToESP();
-}
-
-function renderTextPresets() {
-  ['ru','uk','en'].forEach(lang => {
-    const containerId = 'textPresets' + lang.charAt(0).toUpperCase() + lang.slice(1);
-    const container = document.getElementById(containerId);
-    TEXT_PRESETS[lang].forEach((phrase, i) => {
-      const btn = document.createElement('div');
-      btn.className = 'text-preset-btn';
-      btn.id = `textPreset_${lang}_${i}`;
-      btn.onclick = () => applyTextPreset(phrase, lang, i);
-      const preview = document.createElement('span');
-      preview.className = 'text-preset-preview';
-      preview.textContent = phrase;
-      btn.appendChild(preview);
-      container.appendChild(btn);
-    });
-  });
-}
-
-function applyTextPreset(phrase, lang, index) {
-  if (mode !== 'text') setMode('text');
-  removeTempInput();
-  textObjects = [{ lines: wrapText(phrase, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP }];
-  document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
-  const el = document.getElementById(`textPreset_${lang}_${index}`);
-  if (el) el.classList.add('selected');
-  lastSentState = ''; sendUpdateToESP();
+function toggleEraser() {
+  isErasing = !isErasing;
+  document.getElementById('eraserToggleBtn').classList.toggle('active', isErasing);
+  const bs = document.getElementById('brushSelector');
+  bs.querySelectorAll('.brush-btn').forEach(b => b.style.opacity = isErasing ? '0.4' : '1');
+  canvas.style.cursor = isErasing ? 'cell' : 'default';
 }
 
 function requestEyeSync() {
   if (!ESP_IP) return;
-  fetch(ESP_IP + '/data').then(r => r.json()).then(data => {
-    if (mode === "manual" && !activeEyeDisp && !dragStarted) {
-      if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
-      if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
+  fetch(ESP_IP+'/data').then(r=>r.json()).then(data => {
+    if (mode==="manual" && !activeEyeDisp && !dragStarted) {
+      if (typeof data.left_eye_x==="number") { leftEyeDisp.x=data.left_eye_x; leftEyeDisp.y=data.left_eye_y; }
+      if (typeof data.right_eye_x==="number") { rightEyeDisp.x=data.right_eye_x; rightEyeDisp.y=data.right_eye_y; }
     }
-  }).catch(() => {});
+  }).catch(()=>{});
 }
 
 function sendUpdateToESP() {
   if (!ESP_IP) return;
+  // Only the controller may send commands to ESP
+  if (window.currentUser && !window.isController) return;
   let state = {
-    mode, manualEyeStyle, leftBlink: leftEyeDisp.blink, rightBlink: rightEyeDisp.blink,
-    strokes: strokes.slice(-50).map(s => ({ points: s.points.map(p => [p.x, p.y]), size: s.size })),
-    currentStroke: currentStroke ? { points: currentStroke.points.map(p => [p.x, p.y]), size: currentStroke.size } : {},
-    textObjects: textObjects.map(t => ({ lines: t.lines, x: t.x, y: t.y, fontSize: t.fontSize })),
+    mode, manualEyeStyle, leftBlink:leftEyeDisp.blink, rightBlink:rightEyeDisp.blink,
+    strokes: strokes.slice(-50).map(s => ({ points: s.points.map(p=>[p.x,p.y]), size: s.size, erase: s.erase||false })),
+    currentStroke: currentStroke ? { points: currentStroke.points.map(p=>[p.x,p.y]), size: currentStroke.size, erase: currentStroke.erase||false } : {},
+    textObjects: textObjects.map(t => ({ lines:t.lines, x:t.x, y:t.y, fontSize:t.fontSize })),
     isTyping: (tempTextarea !== null)
   };
-  if (activeEyeDisp === leftEyeDisp) { state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y }; state.activeEye = 'left'; }
-  else if (activeEyeDisp === rightEyeDisp) { state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y }; state.activeEye = 'right'; }
-  else { state.leftEye = { x: leftEyeDisp.x, y: leftEyeDisp.y }; state.rightEye = { x: rightEyeDisp.x, y: rightEyeDisp.y }; state.activeEye = null; }
+  if (activeEyeDisp===leftEyeDisp) { state.leftEye={x:leftEyeDisp.x,y:leftEyeDisp.y}; state.activeEye='left'; }
+  else if (activeEyeDisp===rightEyeDisp) { state.rightEye={x:rightEyeDisp.x,y:rightEyeDisp.y}; state.activeEye='right'; }
+  else { state.leftEye={x:leftEyeDisp.x,y:leftEyeDisp.y}; state.rightEye={x:rightEyeDisp.x,y:rightEyeDisp.y}; state.activeEye=null; }
   const stateStr = JSON.stringify(state);
   if (stateStr === lastSentState) return;
   lastSentState = stateStr;
-  fetch(ESP_IP + '/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: stateStr })
-    .then(r => { if (!r.ok) throw new Error(); }).catch(() => setConnected(false));
+  fetch(ESP_IP+'/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: stateStr })
+    .then(r=>{ if (!r.ok) throw new Error(); }).catch(()=>setConnected(false));
 }
 
-function debouncedSendUpdate() {
-  if (updateTimeout) clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(sendUpdateToESP, 80);
-}
+function debouncedSendUpdate() { if (updateTimeout) clearTimeout(updateTimeout); updateTimeout = setTimeout(sendUpdateToESP, 80); }
 
 function setMode(newMode) {
   if (newMode === mode) return;
   let oldMode = mode;
-  if (oldMode === "draw") strokes = [];
-  if (oldMode === "text") textObjects = [];
+  if (oldMode==="draw") strokes = [];
+  if (oldMode==="text") textObjects = [];
   currentStroke = null;
   mode = newMode;
+  isErasing = false;
   updateModeUI();
   const toolbar = document.getElementById('bottomToolbar');
   const brushSel = document.getElementById('brushSelector');
-  if (mode === 'draw' || mode === 'text') {
+  const eraserBtn = document.getElementById('eraserToggleBtn');
+  if (mode==='draw' || mode==='text') {
     toolbar.style.display = 'flex';
-    brushSel.style.display = mode === 'draw' ? 'flex' : 'none';
+    brushSel.style.display = mode==='draw' ? 'flex' : 'none';
+    eraserBtn.style.display = mode==='draw' ? 'flex' : 'none';
+    eraserBtn.classList.remove('active');
+    canvas.style.cursor = 'crosshair';
   } else {
     toolbar.style.display = 'none';
+    canvas.style.cursor = 'default';
   }
-  document.getElementById('panelPresetManual').style.display = (mode === 'manual') ? 'block' : 'none';
-  document.getElementById('panelPresetDraw').style.display = (mode === 'draw') ? 'block' : 'none';
-  document.getElementById('panelPresetText').style.display = (mode === 'text') ? 'block' : 'none';
+  document.getElementById('panelPresetManual').style.display = (mode==='manual') ? 'block' : 'none';
+  document.getElementById('panelPresetDraw').style.display = (mode==='draw') ? 'block' : 'none';
+  document.getElementById('panelPresetText').style.display = (mode==='text') ? 'block' : 'none';
   document.getElementById('modeLabel').textContent = newMode.toUpperCase();
   canvas.style.display = 'block';
   document.getElementById('loadingBox').style.display = 'none';
@@ -1118,37 +2175,39 @@ function setMode(newMode) {
   selectedDrawPreset = -1;
   document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
   document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected'));
+
+  // Close editor if switching away from draw
+  if (newMode !== 'draw') closeDrawEditor();
+
   lastSentState = ''; sendUpdateToESP();
-  if (newMode === "manual") setTimeout(requestEyeSync, 100);
+  if (newMode==="manual") setTimeout(requestEyeSync, 100);
 }
 
-function updateModeUI() {
-  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
-}
+function updateModeUI() { document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode===mode)); }
+
 function setBrushSize(size) {
   brushSize = size;
-  document.getElementById('brushSmall').classList.toggle('active', size === 2);
-  document.getElementById('brushMedium').classList.toggle('active', size === 5);
-  document.getElementById('brushLarge').classList.toggle('active', size === 8);
+  isErasing = false;
+  document.getElementById('eraserToggleBtn').classList.remove('active');
+  canvas.style.cursor = 'crosshair';
+  document.getElementById('brushSmall').classList.toggle('active', size===2);
+  document.getElementById('brushMedium').classList.toggle('active', size===5);
+  document.getElementById('brushLarge').classList.toggle('active', size===8);
 }
+
 function clearContent() {
-  if (mode === 'draw') { strokes = []; currentStroke = null; selectedDrawPreset = -1; document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected')); }
-  else if (mode === 'text') { textObjects = []; document.querySelectorAll('.text-preset-btn').forEach(b => b.classList.remove('selected')); }
-  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
+  if (mode==='draw') { strokes=[]; currentStroke=null; selectedDrawPreset=-1; document.querySelectorAll('.draw-preset-btn').forEach(b=>b.classList.remove('selected')); }
+  else if (mode==='text') { textObjects=[]; document.querySelectorAll('.text-preset-btn').forEach(b=>b.classList.remove('selected')); }
+  activeEyeDisp=null; lastSentState=''; sendUpdateToESP();
 }
 
 function wrapText(text, maxLen) {
-  const words = text.split(/(\s+)/);
-  const lines = []; let cur = '';
+  const words = text.split(/(\s+)/); const lines = []; let cur = '';
   for (let w of words) {
-    if (w.length > maxLen) {
-      if (cur.trim()) { lines.push(cur); cur = ''; }
-      for (let j=0; j<w.length; j+=maxLen) lines.push(w.substr(j,maxLen));
-      continue;
-    }
-    const test = cur + w;
+    if (w.length > maxLen) { if (cur.trim()) { lines.push(cur); cur=''; } for (let j=0; j<w.length; j+=maxLen) lines.push(w.substr(j,maxLen)); continue; }
+    const test = cur+w;
     if (test.length <= maxLen) cur = test;
-    else { if (cur.trim()) lines.push(cur); cur = w; }
+    else { if (cur.trim()) lines.push(cur); cur=w; }
   }
   if (cur.trim()) lines.push(cur);
   return lines;
@@ -1156,18 +2215,17 @@ function wrapText(text, maxLen) {
 
 function drawTextBlock(t) {
   let pos = displayToCanvas(t.x, t.y);
-  let fontSize = t.fontSize * (canvas.clientHeight / DISPLAY_H);
+  let fontSize = t.fontSize*(canvas.clientHeight/DISPLAY_H);
   ctx.save();
-  ctx.fillStyle = '#fff'; ctx.font = `${fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const lh = fontSize * 1.2;
-  const sy = pos.y - (t.lines.length - 1) * lh / 2;
-  t.lines.forEach((line, i) => ctx.fillText(line, pos.x, sy + i * lh));
+  ctx.fillStyle='#fff'; ctx.font=`${fontSize}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  const lh=fontSize*1.2, sy=pos.y-(t.lines.length-1)*lh/2;
+  t.lines.forEach((line,i)=>ctx.fillText(line, pos.x, sy+i*lh));
   ctx.restore();
 }
 
 function removeTempInput() {
-  if (tempTextarea) { tempTextarea.remove(); tempTextarea = null; }
-  if (charCounter) { charCounter.remove(); charCounter = null; }
+  if (tempTextarea) { tempTextarea.remove(); tempTextarea=null; }
+  if (charCounter) { charCounter.remove(); charCounter=null; }
 }
 
 function showTextInput() {
@@ -1182,334 +2240,281 @@ function showTextInput() {
   charCounter.className = 'char-counter';
   charCounter.innerText = `0/${MAX_TEXT_LENGTH}`;
   document.querySelector('.canvas-wrapper').appendChild(charCounter);
-  tempTextarea.addEventListener('input', () => { charCounter.innerText = `${tempTextarea.value.length}/${MAX_TEXT_LENGTH}`; activeEyeDisp = null; lastSentState = ''; sendUpdateToESP(); });
+  tempTextarea.addEventListener('input', ()=>{ charCounter.innerText=`${tempTextarea.value.length}/${MAX_TEXT_LENGTH}`; activeEyeDisp=null; lastSentState=''; sendUpdateToESP(); });
   tempTextarea.addEventListener('blur', finishTextInput);
-  tempTextarea.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); finishTextInput(); } });
-  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
+  tempTextarea.addEventListener('keydown', e=>{ if (e.key==='Enter'&&!e.ctrlKey&&!e.shiftKey) { e.preventDefault(); finishTextInput(); } });
+  activeEyeDisp=null; lastSentState=''; sendUpdateToESP();
 }
 
 function finishTextInput() {
   if (!tempTextarea) return;
   let text = tempTextarea.value;
   removeTempInput();
-  if (text.trim()) {
-    if (text.length > MAX_TEXT_LENGTH) text = text.substring(0, MAX_TEXT_LENGTH);
-    textObjects.push({ lines: wrapText(text, MAX_CHARS_PER_LINE), x: DISPLAY_W/2, y: DISPLAY_H/2, fontSize: TEXT_FONT_SIZE_DISP });
-  }
-  activeEyeDisp = null; lastSentState = ''; sendUpdateToESP();
+  if (text.trim()) { if (text.length>MAX_TEXT_LENGTH) text=text.substring(0,MAX_TEXT_LENGTH); textObjects.push({ lines:wrapText(text,MAX_CHARS_PER_LINE), x:DISPLAY_W/2, y:DISPLAY_H/2, fontSize:TEXT_FONT_SIZE_DISP }); }
+  activeEyeDisp=null; lastSentState=''; sendUpdateToESP();
 }
 
 function getTextIndexAt(dispX, dispY) {
   for (let i=textObjects.length-1; i>=0; i--) {
-    let t = textObjects[i];
-    let approxWidth = t.lines.reduce((max, line) => Math.max(max, line.length * t.fontSize * 0.6), 0);
-    let approxHeight = t.lines.length * t.fontSize * 1.2;
-    if (dispX >= t.x-approxWidth/2-5 && dispX <= t.x+approxWidth/2+5 && dispY >= t.y-approxHeight/2-5 && dispY <= t.y+approxHeight/2+5) return i;
+    let t=textObjects[i], aw=t.lines.reduce((m,l)=>Math.max(m,l.length*t.fontSize*0.6),0), ah=t.lines.length*t.fontSize*1.2;
+    if (dispX>=t.x-aw/2-5 && dispX<=t.x+aw/2+5 && dispY>=t.y-ah/2-5 && dispY<=t.y+ah/2+5) return i;
   }
   return -1;
 }
 
-function isPointInsideEye(dispX, dispY, eyeDisp) {
-  return Math.abs(dispX - eyeDisp.x) <= EYE_WIDTH_DISP/2 && Math.abs(dispY - eyeDisp.y) <= EYE_HEIGHT_DISP/2;
-}
-function blinkEye(eyeDisp) {
-  eyeDisp.blink = true; lastSentState = ''; sendUpdateToESP();
-  setTimeout(() => { eyeDisp.blink = false; lastSentState = ''; sendUpdateToESP(); }, 200);
-}
+function isPointInsideEye(dispX, dispY, eye) { return Math.abs(dispX-eye.x)<=EYE_WIDTH_DISP/2 && Math.abs(dispY-eye.y)<=EYE_HEIGHT_DISP/2; }
+
+function blinkEye(eye) { eye.blink=true; lastSentState=''; sendUpdateToESP(); setTimeout(()=>{ eye.blink=false; lastSentState=''; sendUpdateToESP(); }, 200); }
 
 function getPos(evt) {
-  let rect = canvas.getBoundingClientRect();
-  let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
-  let cy = evt.touches ? evt.touches[0].clientY : evt.clientY;
-  return { x: cx - rect.left, y: cy - rect.top };
+  let rect=canvas.getBoundingClientRect(), cx=evt.touches?evt.touches[0].clientX:evt.clientX, cy=evt.touches?evt.touches[0].clientY:evt.clientY;
+  return { x: cx-rect.left, y: cy-rect.top };
 }
 
 function handleStart(evt) {
   evt.preventDefault();
-  let canvasPos = getPos(evt);
-  let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
-  if (mode === "manual") {
-    if (isPointInsideEye(dispPos.x, dispPos.y, leftEyeDisp)) activeEyeDisp = leftEyeDisp;
-    else if (isPointInsideEye(dispPos.x, dispPos.y, rightEyeDisp)) activeEyeDisp = rightEyeDisp;
-    else activeEyeDisp = null;
-    if (activeEyeDisp) { dragStart = canvasPos; dragStarted = false; }
-  } else if (mode === "draw") {
-    isDrawing = true;
-    currentStroke = { points: [{ x: dispPos.x, y: dispPos.y }], size: brushSize };
-    selectedDrawPreset = -1;
-    document.querySelectorAll('.draw-preset-btn').forEach(b => b.classList.remove('selected'));
-    activeEyeDisp = null;
-  } else if (mode === "text") {
+  let cp=getPos(evt), dp=canvasToDisplay(cp.x, cp.y);
+  if (mode==="manual") {
+    if (isPointInsideEye(dp.x,dp.y,leftEyeDisp)) activeEyeDisp=leftEyeDisp;
+    else if (isPointInsideEye(dp.x,dp.y,rightEyeDisp)) activeEyeDisp=rightEyeDisp;
+    else activeEyeDisp=null;
+    if (activeEyeDisp) { dragStart=cp; dragStarted=false; }
+  } else if (mode==="draw") {
+    isDrawing=true;
+    currentStroke={ points:[dp], size:brushSize, erase:isErasing };
+    selectedDrawPreset=-1;
+    document.querySelectorAll('.draw-preset-btn').forEach(b=>b.classList.remove('selected'));
+    activeEyeDisp=null;
+  } else if (mode==="text") {
     if (tempTextarea) return;
-    let idx = getTextIndexAt(dispPos.x, dispPos.y);
-    if (idx !== -1) { activeTextIndex = idx; textDragOffset = { x: dispPos.x - textObjects[idx].x, y: dispPos.y - textObjects[idx].y }; }
+    let idx=getTextIndexAt(dp.x,dp.y);
+    if (idx!==-1) { activeTextIndex=idx; textDragOffset={ x:dp.x-textObjects[idx].x, y:dp.y-textObjects[idx].y }; }
     else showTextInput();
-    activeEyeDisp = null;
+    activeEyeDisp=null;
   }
 }
 
 function handleMove(evt) {
   evt.preventDefault();
-  let canvasPos = getPos(evt);
-  let dispPos = canvasToDisplay(canvasPos.x, canvasPos.y);
-  if (mode === "manual" && activeEyeDisp) {
-    let dx = canvasPos.x - dragStart.x, dy = canvasPos.y - dragStart.y;
-    if (!dragStarted && Math.sqrt(dx*dx+dy*dy) >= dragThreshold) dragStarted = true;
+  let cp=getPos(evt), dp=canvasToDisplay(cp.x, cp.y);
+  if (mode==="manual" && activeEyeDisp) {
+    let dx=cp.x-dragStart.x, dy=cp.y-dragStart.y;
+    if (!dragStarted && Math.sqrt(dx*dx+dy*dy)>=dragThreshold) dragStarted=true;
     if (dragStarted) {
-      let nx = Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W-EYE_WIDTH_DISP/2, dispPos.x));
-      let ny = Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H-EYE_HEIGHT_DISP/2, dispPos.y));
-      if (activeEyeDisp === leftEyeDisp) nx = Math.min(nx, rightEyeDisp.x - EYE_WIDTH_DISP - MIN_GAP_DISP);
-      else if (activeEyeDisp === rightEyeDisp) nx = Math.max(nx, leftEyeDisp.x + EYE_WIDTH_DISP + MIN_GAP_DISP);
-      activeEyeDisp.x = nx; activeEyeDisp.y = ny; debouncedSendUpdate();
+      let nx=Math.max(EYE_WIDTH_DISP/2, Math.min(DISPLAY_W-EYE_WIDTH_DISP/2, dp.x));
+      let ny=Math.max(EYE_HEIGHT_DISP/2, Math.min(DISPLAY_H-EYE_HEIGHT_DISP/2, dp.y));
+      if (activeEyeDisp===leftEyeDisp) nx=Math.min(nx, rightEyeDisp.x-EYE_WIDTH_DISP-MIN_GAP_DISP);
+      else if (activeEyeDisp===rightEyeDisp) nx=Math.max(nx, leftEyeDisp.x+EYE_WIDTH_DISP+MIN_GAP_DISP);
+      activeEyeDisp.x=nx; activeEyeDisp.y=ny; debouncedSendUpdate();
     }
-  } else if (mode === "draw" && isDrawing && currentStroke) {
-    currentStroke.points.push({ x: dispPos.x, y: dispPos.y });
-    debouncedSendUpdate();
-  } else if (mode === "text" && activeTextIndex !== -1) {
-    let t = textObjects[activeTextIndex];
-    t.x = Math.max(0, Math.min(DISPLAY_W, dispPos.x - textDragOffset.x));
-    t.y = Math.max(0, Math.min(DISPLAY_H, dispPos.y - textDragOffset.y));
+  } else if (mode==="draw" && isDrawing && currentStroke) {
+    currentStroke.points.push(dp); debouncedSendUpdate();
+  } else if (mode==="text" && activeTextIndex!==-1) {
+    let t=textObjects[activeTextIndex];
+    t.x=Math.max(0, Math.min(DISPLAY_W, dp.x-textDragOffset.x));
+    t.y=Math.max(0, Math.min(DISPLAY_H, dp.y-textDragOffset.y));
     debouncedSendUpdate();
   }
 }
 
 function handleEnd(evt) {
   evt.preventDefault();
-  if (mode === "manual") {
+  if (mode==="manual") {
     if (activeEyeDisp && !dragStarted) blinkEye(activeEyeDisp);
-    activeEyeDisp = null; dragStarted = false;
+    activeEyeDisp=null; dragStarted=false;
     setTimeout(requestEyeSync, 100);
-  } else if (mode === "draw" && isDrawing) {
-    if (currentStroke && currentStroke.points.length > 1) strokes.push(currentStroke);
-    if (strokes.length > 50) strokes.shift();
-    currentStroke = null; isDrawing = false;
-  } else if (mode === "text") {
-    activeTextIndex = -1;
-  }
-  lastSentState = ''; sendUpdateToESP();
+  } else if (mode==="draw" && isDrawing) {
+    if (currentStroke && currentStroke.points.length>1) {
+      // For erase strokes, don't push to strokes array if erasing — instead apply directly
+      strokes.push(currentStroke);
+      if (strokes.length>50) strokes.shift();
+    }
+    currentStroke=null; isDrawing=false;
+  } else if (mode==="text") { activeTextIndex=-1; }
+  lastSentState=''; sendUpdateToESP();
 }
 
 canvas.addEventListener('mousedown', handleStart);
 canvas.addEventListener('mousemove', handleMove);
 canvas.addEventListener('mouseup', handleEnd);
 canvas.addEventListener('mouseleave', handleEnd);
-canvas.addEventListener('touchstart', handleStart, { passive: false });
-canvas.addEventListener('touchmove', handleMove, { passive: false });
+canvas.addEventListener('touchstart', handleStart, { passive:false });
+canvas.addEventListener('touchmove', handleMove, { passive:false });
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('touchcancel', handleEnd);
 
 function drawEye(dispEye, isLeft) {
-  let pos = displayToCanvas(dispEye.x, dispEye.y);
-  let w = (EYE_WIDTH_DISP / DISPLAY_W) * canvas.clientWidth;
-  let h = (EYE_HEIGHT_DISP / DISPLAY_H) * canvas.clientHeight;
-  let r = (EYE_RADIUS_DISP / DISPLAY_H) * canvas.clientHeight;
-  const drawBrow = (centerSideDown) => {
-    const browY = pos.y - h/2 - 6;
-    const tilt = 5;
-    ctx.lineWidth = 2;
+  let pos=displayToCanvas(dispEye.x, dispEye.y);
+  let w=(EYE_WIDTH_DISP/DISPLAY_W)*canvas.clientWidth;
+  let h=(EYE_HEIGHT_DISP/DISPLAY_H)*canvas.clientHeight;
+  let r=(EYE_RADIUS_DISP/DISPLAY_H)*canvas.clientHeight;
+  const drawBrow = (cd) => {
+    const browY=pos.y-h/2-6, tilt=5;
+    ctx.lineWidth=2;
     ctx.beginPath();
-    if (centerSideDown) { ctx.moveTo(pos.x - w/2, browY); ctx.lineTo(pos.x + w/2, browY + tilt); }
-    else { ctx.moveTo(pos.x - w/2, browY + tilt); ctx.lineTo(pos.x + w/2, browY); }
+    if (cd) { ctx.moveTo(pos.x-w/2,browY); ctx.lineTo(pos.x+w/2,browY+tilt); }
+    else { ctx.moveTo(pos.x-w/2,browY+tilt); ctx.lineTo(pos.x+w/2,browY); }
     ctx.stroke();
     ctx.beginPath();
-    if (centerSideDown) { ctx.moveTo(pos.x - w/2, browY + 3); ctx.lineTo(pos.x + w/2, browY + tilt + 3); }
-    else { ctx.moveTo(pos.x - w/2, browY + tilt + 3); ctx.lineTo(pos.x + w/2, browY + 3); }
+    if (cd) { ctx.moveTo(pos.x-w/2,browY+3); ctx.lineTo(pos.x+w/2,browY+tilt+3); }
+    else { ctx.moveTo(pos.x-w/2,browY+tilt+3); ctx.lineTo(pos.x+w/2,browY+3); }
     ctx.stroke();
   };
   ctx.save();
-  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (dispEye.blink) {
-    ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(pos.x - w/2, pos.y); ctx.lineTo(pos.x + w/2, pos.y); ctx.stroke();
-    ctx.restore(); return;
-  }
+  ctx.strokeStyle='#fff'; ctx.fillStyle='#fff'; ctx.lineCap='round'; ctx.lineJoin='round';
+  if (dispEye.blink) { ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(pos.x-w/2,pos.y); ctx.lineTo(pos.x+w/2,pos.y); ctx.stroke(); ctx.restore(); return; }
   switch (manualEyeStyle) {
-    case 'angry':
-      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2 + 2, w, h - 4, r); ctx.fill(); drawBrow(isLeft); break;
-    case 'happy':
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(pos.x - w/2, pos.y + 2); ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 2, pos.x + w/2, pos.y + 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(pos.x - w/2 + 2, pos.y + 6); ctx.quadraticCurveTo(pos.x, pos.y - h/2 + 6, pos.x + w/2 - 2, pos.y + 6); ctx.stroke(); break;
-    case 'sad':
-      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2 + 4, w, h - 8, r); ctx.fill(); drawBrow(!isLeft); break;
-    default:
-      ctx.beginPath(); roundRect(ctx, pos.x - w/2, pos.y - h/2, w, h, r); ctx.fill(); break;
+    case 'angry': ctx.beginPath(); roundRect(ctx,pos.x-w/2,pos.y-h/2+2,w,h-4,r); ctx.fill(); drawBrow(isLeft); break;
+    case 'happy': ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(pos.x-w/2,pos.y+2); ctx.quadraticCurveTo(pos.x,pos.y-h/2+2,pos.x+w/2,pos.y+2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x-w/2+2,pos.y+6); ctx.quadraticCurveTo(pos.x,pos.y-h/2+6,pos.x+w/2-2,pos.y+6); ctx.stroke(); break;
+    case 'sad': ctx.beginPath(); roundRect(ctx,pos.x-w/2,pos.y-h/2+4,w,h-8,r); ctx.fill(); drawBrow(!isLeft); break;
+    default: ctx.beginPath(); roundRect(ctx,pos.x-w/2,pos.y-h/2,w,h,r); ctx.fill(); break;
   }
   ctx.restore();
 }
 
 function roundRect(ctx, x, y, w, h, r) {
-  if (w < 2*r) r = w/2; if (h < 2*r) r = h/2;
-  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
+  if (w<2*r) r=w/2; if (h<2*r) r=h/2;
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
 }
 
 function draw() {
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
-  if (mode === "auto") {
-    ctx.fillStyle = 'rgba(0,255,179,0.15)'; ctx.font = '700 13px Space Mono, monospace';
-    ctx.textAlign = 'center'; ctx.letterSpacing = '0.15em'; ctx.fillText('AUTO MODE', w/2, h/2);
-  } else if (mode === "manual") {
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  if (mode==="auto") {
+    ctx.fillStyle='rgba(0,255,179,0.15)'; ctx.font='700 13px Space Mono, monospace';
+    ctx.textAlign='center'; ctx.letterSpacing='0.15em'; ctx.fillText('AUTO MODE', w/2, h/2);
+  } else if (mode==="manual") {
     drawEye(leftEyeDisp, true); drawEye(rightEyeDisp, false);
-  } else if (mode === "draw") {
-    ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  } else if (mode==="draw") {
+    ctx.lineCap='round'; ctx.lineJoin='round';
     [...strokes, ...(currentStroke ? [currentStroke] : [])].forEach(s => {
-      if (!s.points || s.points.length < 1) return;
-      ctx.lineWidth = s.size * (canvas.clientWidth / DISPLAY_W);
-      if (s.points.length === 1) {
-        ctx.fillStyle = '#fff'; ctx.beginPath();
-        ctx.arc(...Object.values(displayToCanvas(s.points[0].x, s.points[0].y)), s.size * canvas.clientWidth / DISPLAY_W / 2, 0, Math.PI*2);
-        ctx.fill();
+      if (!s.points || s.points.length<1) return;
+      const scaledSize = s.size*(canvas.clientWidth/DISPLAY_W);
+      if (s.erase) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = scaledSize*2.5;
+        if (s.points.length===1) { const p=displayToCanvas(s.points[0].x,s.points[0].y); ctx.fillStyle='rgba(0,0,0,1)'; ctx.beginPath(); ctx.arc(p.x,p.y,scaledSize,0,Math.PI*2); ctx.fill(); }
+        else { ctx.strokeStyle='rgba(0,0,0,1)'; ctx.beginPath(); const f=displayToCanvas(s.points[0].x,s.points[0].y); ctx.moveTo(f.x,f.y); for(let i=1;i<s.points.length;i++){const p=displayToCanvas(s.points[i].x,s.points[i].y);ctx.lineTo(p.x,p.y);} ctx.stroke(); }
+        ctx.restore();
       } else {
-        ctx.beginPath();
-        let first = displayToCanvas(s.points[0].x, s.points[0].y); ctx.moveTo(first.x, first.y);
-        for (let i=1; i<s.points.length; i++) { let p = displayToCanvas(s.points[i].x, s.points[i].y); ctx.lineTo(p.x, p.y); }
-        ctx.stroke();
+        ctx.strokeStyle='#fff'; ctx.fillStyle='#fff'; ctx.lineWidth=scaledSize;
+        if (s.points.length===1) { const p=displayToCanvas(s.points[0].x,s.points[0].y); ctx.beginPath(); ctx.arc(p.x,p.y,scaledSize/2,0,Math.PI*2); ctx.fill(); }
+        else { ctx.beginPath(); const f=displayToCanvas(s.points[0].x,s.points[0].y); ctx.moveTo(f.x,f.y); for(let i=1;i<s.points.length;i++){const p=displayToCanvas(s.points[i].x,s.points[i].y);ctx.lineTo(p.x,p.y);} ctx.stroke(); }
       }
     });
-  } else if (mode === "text") {
+  } else if (mode==="text") {
     textObjects.forEach(t => drawTextBlock(t));
   }
   requestAnimationFrame(draw);
 }
 
+// ========== CHART ==========
 function initChart() {
   const chartCtx = document.getElementById('sensorChart').getContext('2d');
   chart = new Chart(chartCtx, {
-    type: 'line',
-    data: {
-      labels: Array.from({ length: MAX_HISTORY }, (_, i) => i + 1),
-      datasets: [{ label: '', data: [], borderColor: '#00ffb3', backgroundColor: 'rgba(0,255,179,0.06)', tension: 0.3, pointRadius: 2, pointBackgroundColor: '#00ffb3', borderWidth: 2 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      scales: {
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 } } },
-        x: { grid: { display: false }, ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 } } }
-      },
-      plugins: { legend: { display: false } }
-    }
+    type:'line',
+    data: { labels: Array.from({length:MAX_HISTORY},(_,i)=>i+1), datasets:[{ label:'', data:[], borderColor:'#00ffb3', backgroundColor:'rgba(0,255,179,0.06)', tension:0.3, pointRadius:2, pointBackgroundColor:'#00ffb3', borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:true, scales: { y:{ grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#6b6b8a',font:{family:'Space Mono',size:10}} }, x:{ grid:{display:false}, ticks:{color:'#6b6b8a',font:{family:'Space Mono',size:10}} } }, plugins:{legend:{display:false}} }
   });
 }
 
 function updateChart() {
   if (!chart) return;
-  const p = document.getElementById('paramSelect').value;
-  const dataMap = { lux: historyLux, bmp_temp: historyBmpTemp, pressure: historyPressure, altitude: historyAltitude };
-  chart.data.datasets[0].data = dataMap[p] || [];
-  chart.update();
+  const p=document.getElementById('paramSelect').value;
+  const dm={lux:historyLux, bmp_temp:historyBmpTemp, pressure:historyPressure, altitude:historyAltitude};
+  chart.data.datasets[0].data=dm[p]||[]; chart.update();
 }
 
 function toggleGraph(btn) {
-  const c = document.getElementById('graphContainer');
-  const open = c.style.display === 'none' || !c.style.display;
-  c.style.display = open ? 'block' : 'none';
-  btn.classList.toggle('open', open);
-  btn.innerHTML = open
-    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Hide Graph`
-    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Show Graph`;
+  const c=document.getElementById('graphContainer');
+  const open=c.style.display==='none'||!c.style.display;
+  c.style.display=open?'block':'none';
+  btn.classList.toggle('open',open);
+  btn.innerHTML=open ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Hide Graph` : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Show Graph`;
   if (open && !chart) initChart();
 }
 
 document.getElementById('paramSelect').addEventListener('change', updateChart);
 
 function setConnected(connected) {
-  isConnected = connected;
-  const badge = document.getElementById('connectionBadge');
-  const label = document.getElementById('connLabel');
-  badge.className = connected ? 'connected' : 'disconnected';
-  label.textContent = connected ? 'ONLINE' : 'OFFLINE';
+  isConnected=connected;
+  const badge=document.getElementById('connectionBadge'), label=document.getElementById('connLabel');
+  badge.className=connected?'connected':'disconnected';
+  label.textContent=connected?'ONLINE':'OFFLINE';
 }
 
 function updateData() {
   if (!ESP_IP) return;
-  fetch(ESP_IP + '/data')
-    .then(r => { if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
+  fetch(ESP_IP+'/data')
+    .then(r=>{ if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
-      // Feed MPU data to 3D model
       updateModel3DFromSensor(data);
-
-      if (mode === "manual" && !activeEyeDisp && !dragStarted) {
-        if (typeof data.left_eye_x === "number") { leftEyeDisp.x = data.left_eye_x; leftEyeDisp.y = data.left_eye_y; }
-        if (typeof data.right_eye_x === "number") { rightEyeDisp.x = data.right_eye_x; rightEyeDisp.y = data.right_eye_y; }
+      if (mode==="manual" && !activeEyeDisp && !dragStarted) {
+        if (typeof data.left_eye_x==="number") { leftEyeDisp.x=data.left_eye_x; leftEyeDisp.y=data.left_eye_y; }
+        if (typeof data.right_eye_x==="number") { rightEyeDisp.x=data.right_eye_x; rightEyeDisp.y=data.right_eye_y; }
       }
-      if (typeof data.manual_eye_style === 'string' &&
-          ['default','angry','happy','sad'].includes(data.manual_eye_style) &&
-          data.manual_eye_style !== manualEyeStyle) {
-        manualEyeStyle = data.manual_eye_style;
-        updateManualStyleUI();
-      }
-      const lb = document.getElementById('leftBtn'); const rb = document.getElementById('rightBtn');
-      lb.textContent = data.left ? 'PRESSED' : 'RELEASED'; lb.className = 'btn-state-badge ' + (data.left ? 'pressed' : 'released');
-      rb.textContent = data.right ? 'PRESSED' : 'RELEASED'; rb.className = 'btn-state-badge ' + (data.right ? 'pressed' : 'released');
-      const mpuOk = !!data.mpu_ok;
-      document.getElementById('mpuTable').style.display = mpuOk ? 'table' : 'none';
-      document.getElementById('mpuNoData').style.display = mpuOk ? 'none' : 'block';
-      document.getElementById('mpuStatus').className = mpuOk ? 'status-ok' : 'status-err';
-      document.getElementById('mpuStatus').textContent = mpuOk ? 'OK' : 'NOT DETECTED';
+      if (typeof data.manual_eye_style==='string' && ['default','angry','happy','sad'].includes(data.manual_eye_style) && data.manual_eye_style!==manualEyeStyle) { manualEyeStyle=data.manual_eye_style; updateManualStyleUI(); }
+      const lb=document.getElementById('leftBtn'), rb=document.getElementById('rightBtn');
+      lb.textContent=data.left?'PRESSED':'RELEASED'; lb.className='btn-state-badge '+(data.left?'pressed':'released');
+      rb.textContent=data.right?'PRESSED':'RELEASED'; rb.className='btn-state-badge '+(data.right?'pressed':'released');
+      const mpuOk=!!data.mpu_ok;
+      document.getElementById('mpuTable').style.display=mpuOk?'table':'none';
+      document.getElementById('mpuNoData').style.display=mpuOk?'none':'block';
+      document.getElementById('mpuStatus').className=mpuOk?'status-ok':'status-err';
+      document.getElementById('mpuStatus').textContent=mpuOk?'OK':'NOT DETECTED';
       if (mpuOk) {
-        document.getElementById('accelX').textContent = (data.accel_x??0).toFixed(2)+' m/s²';
-        document.getElementById('accelY').textContent = (data.accel_y??0).toFixed(2)+' m/s²';
-        document.getElementById('accelZ').textContent = (data.accel_z??0).toFixed(2)+' m/s²';
-        document.getElementById('gyroX').textContent = (data.gyro_x??0).toFixed(2)+' rad/s';
-        document.getElementById('gyroY').textContent = (data.gyro_y??0).toFixed(2)+' rad/s';
-        document.getElementById('gyroZ').textContent = (data.gyro_z??0).toFixed(2)+' rad/s';
-        document.getElementById('mpuTemp').textContent = (data.mpu_temp??0).toFixed(2)+' °C';
+        document.getElementById('accelX').textContent=(data.accel_x??0).toFixed(2)+' m/s²';
+        document.getElementById('accelY').textContent=(data.accel_y??0).toFixed(2)+' m/s²';
+        document.getElementById('accelZ').textContent=(data.accel_z??0).toFixed(2)+' m/s²';
+        document.getElementById('gyroX').textContent=(data.gyro_x??0).toFixed(2)+' rad/s';
+        document.getElementById('gyroY').textContent=(data.gyro_y??0).toFixed(2)+' rad/s';
+        document.getElementById('gyroZ').textContent=(data.gyro_z??0).toFixed(2)+' rad/s';
+        document.getElementById('mpuTemp').textContent=(data.mpu_temp??0).toFixed(2)+' °C';
       }
-      const bmpOk = !!data.bmp_ok;
-      document.getElementById('bmpTable').style.display = bmpOk ? 'table' : 'none';
-      document.getElementById('bmpNoData').style.display = bmpOk ? 'none' : 'block';
-      document.getElementById('bmpStatusLabel').className = bmpOk ? 'status-ok' : 'status-err';
-      document.getElementById('bmpStatusLabel').textContent = bmpOk ? 'OK' : 'NOT DETECTED';
-      if (bmpOk) {
-        document.getElementById('bmpTemp').textContent = (data.bmp_temp??0).toFixed(2)+' °C';
-        document.getElementById('pressure').textContent = (data.pressure??0).toFixed(2)+' hPa';
-        document.getElementById('altitude').textContent = (data.altitude??0).toFixed(2)+' m';
-      }
-      const bhOk = !!data.bh1750_ok;
-      document.getElementById('bh1750Table').style.display = bhOk ? 'table' : 'none';
-      document.getElementById('bh1750NoData').style.display = bhOk ? 'none' : 'block';
-      document.getElementById('bh1750StatusLabel').className = bhOk ? 'status-ok' : 'status-err';
-      document.getElementById('bh1750StatusLabel').textContent = bhOk ? 'OK' : 'NOT DETECTED';
-      if (bhOk) document.getElementById('lux').textContent = (data.lux??0).toFixed(2)+' lx';
-      document.getElementById('espIP').textContent = data.ip || 'N/A';
-      document.getElementById('espUptime').textContent = formatUptime(Math.floor(data.uptime || 0));
-      document.getElementById('espRSSI').textContent = (data.rssi !== undefined ? data.rssi : 'N/A') + ' dBm';
-      document.getElementById('espVersion').textContent = data.version || '1.5';
-      const statusHTML = ok => ok ? '<span class="status-ok">OK</span>' : '<span class="status-err">NOT DETECTED</span>';
-      document.getElementById('espMPUStatus').innerHTML = statusHTML(data.mpu_ok);
-      document.getElementById('espBMPStatus').innerHTML = statusHTML(data.bmp_ok);
-      document.getElementById('espBH1750Status').innerHTML = statusHTML(data.bh1750_ok);
-      document.getElementById('espDisplayStatus').innerHTML = statusHTML(data.display_ok);
-      document.getElementById('timestamp').textContent = 'Last updated: ' + (data.last_update || '?') + ' ms';
-      const push = (arr, val) => { arr.push(val); if (arr.length > MAX_HISTORY) arr.shift(); };
-      if (bhOk && data.lux !== undefined) push(historyLux, data.lux);
-      if (bmpOk && data.bmp_temp !== undefined) push(historyBmpTemp, data.bmp_temp);
-      if (bmpOk && data.pressure !== undefined) push(historyPressure, data.pressure);
-      if (bmpOk && data.altitude !== undefined) push(historyAltitude, data.altitude);
+      const bmpOk=!!data.bmp_ok;
+      document.getElementById('bmpTable').style.display=bmpOk?'table':'none';
+      document.getElementById('bmpNoData').style.display=bmpOk?'none':'block';
+      document.getElementById('bmpStatusLabel').className=bmpOk?'status-ok':'status-err';
+      document.getElementById('bmpStatusLabel').textContent=bmpOk?'OK':'NOT DETECTED';
+      if (bmpOk) { document.getElementById('bmpTemp').textContent=(data.bmp_temp??0).toFixed(2)+' °C'; document.getElementById('pressure').textContent=(data.pressure??0).toFixed(2)+' hPa'; document.getElementById('altitude').textContent=(data.altitude??0).toFixed(2)+' m'; }
+      const bhOk=!!data.bh1750_ok;
+      document.getElementById('bh1750Table').style.display=bhOk?'table':'none';
+      document.getElementById('bh1750NoData').style.display=bhOk?'none':'block';
+      document.getElementById('bh1750StatusLabel').className=bhOk?'status-ok':'status-err';
+      document.getElementById('bh1750StatusLabel').textContent=bhOk?'OK':'NOT DETECTED';
+      if (bhOk) document.getElementById('lux').textContent=(data.lux??0).toFixed(2)+' lx';
+      document.getElementById('espIP').textContent=data.ip||'N/A';
+      document.getElementById('espUptime').textContent=formatUptime(Math.floor(data.uptime||0));
+      document.getElementById('espRSSI').textContent=(data.rssi!==undefined?data.rssi:'N/A')+' dBm';
+      document.getElementById('espVersion').textContent=data.version||'1.5';
+      const statusHTML=ok=>ok?'<span class="status-ok">OK</span>':'<span class="status-err">NOT DETECTED</span>';
+      document.getElementById('espMPUStatus').innerHTML=statusHTML(data.mpu_ok);
+      document.getElementById('espBMPStatus').innerHTML=statusHTML(data.bmp_ok);
+      document.getElementById('espBH1750Status').innerHTML=statusHTML(data.bh1750_ok);
+      document.getElementById('espDisplayStatus').innerHTML=statusHTML(data.display_ok);
+      document.getElementById('timestamp').textContent='Last updated: '+(data.last_update||'?')+' ms';
+      const push=(arr,val)=>{ arr.push(val); if (arr.length>MAX_HISTORY) arr.shift(); };
+      if (bhOk && data.lux!==undefined) push(historyLux, data.lux);
+      if (bmpOk && data.bmp_temp!==undefined) push(historyBmpTemp, data.bmp_temp);
+      if (bmpOk && data.pressure!==undefined) push(historyPressure, data.pressure);
+      if (bmpOk && data.altitude!==undefined) push(historyAltitude, data.altitude);
       updateChart();
     })
-    .catch(() => {
-      setConnected(false);
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(updateData, 2000);
-    });
+    .catch(()=>{ setConnected(false); if (reconnectTimer) clearTimeout(reconnectTimer); reconnectTimer=setTimeout(updateData, 2000); });
 }
 
-function formatUptime(s) {
-  return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`;
-}
+function formatUptime(s) { return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`; }
 
 function init() {
   resizeCanvas();
   updateModeUI();
   updateManualStyleUI();
   pillPos();
-  DRAW_PRESETS.forEach((_, i) => renderPresetThumb(i));
-  renderTextPresets();
-  updateData();
+  // Note: draw/text presets are now loaded from Firestore via realtime listeners
 }
 
 setInterval(updateData, 200);
