@@ -654,7 +654,7 @@
   }
   .img-action-btn:hover { background: rgba(0,255,179,0.2); box-shadow: 0 0 14px rgba(0,255,179,0.1); }
   .img-action-btn.secondary { background: none; border-color: rgba(0,255,179,0.35); color: var(--accent); }
-  .img-action-btn.secondary:hover { background: rgba(0,255,179,0.2); box-shadow: 0 0 14px rgba(0,255,179,0.1); }
+  .img-action-btn.secondary:hover { background: rgba(0,255,179,0.08); }
   .img-action-btn.ghost { flex: 0 0 auto; background: none; border-color: var(--border); color: var(--text-muted); padding: 10px 14px; }
   .img-action-btn.ghost:hover { color: var(--accent); border-color: rgba(0,255,179,0.3); }
   /* image presets grid */
@@ -1098,12 +1098,13 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
           </button>
         </div>
-        <!-- Image presets grid -->
-        <div id="imgPresetsGrid" style="display:none">
-          <div class="img-presets-label">СОХРАНЁННЫЕ</div>
-          <div class="img-presets-grid" id="imgPresetsInner"></div>
-        </div>
       </div>
+    </div>
+
+    <!-- Image presets — always visible below dropzone -->
+    <div id="imgPresetsGrid" style="display:none">
+      <div class="img-presets-label">СОХРАНЁННЫЕ</div>
+      <div class="img-presets-grid" id="imgPresetsInner"></div>
     </div>
 
   </div>
