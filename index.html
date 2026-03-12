@@ -3233,238 +3233,202 @@ draw();
 
 
 // ================================================================
-// INLINE GIF PARSER (no external deps)
-// Parses GIF89a/GIF87a: extracts frames with delays as ImageData
+// INLINE GIF PARSER — pixel-level, no canvas taint issues
+// Returns composed frames as raw RGBA Float32Arrays
 // ================================================================
 const GifParser = (() => {
+
   function parseGIF(buffer) {
     const data = new Uint8Array(buffer);
     let pos = 0;
+    const byte  = () => data[pos++];
+    const word  = () => { const v = data[pos] | (data[pos+1]<<8); pos+=2; return v; };
+    const skip  = (n) => { pos += n; };
 
-    const read = (n) => { const s = pos; pos += n; return data.slice(s, pos); };
-    const byte = () => data[pos++];
-    const word = () => { const v = data[pos] | (data[pos+1] << 8); pos += 2; return v; };
-
-    // Header
-    const sig = String.fromCharCode(...read(6));
-    if (!sig.startsWith('GIF')) throw new Error('Not a GIF');
+    const sig = String.fromCharCode(data[0],data[1],data[2]);
+    if (sig !== 'GIF') throw new Error('Not a GIF (got: '+sig+')');
+    pos = 6;
 
     const width = word(), height = word();
-    const packed = byte();
-    const bgColor = byte(), aspect = byte();
-    const hasGCT = (packed >> 7) & 1;
-    const gctSize = 3 * (1 << ((packed & 7) + 1));
-    let globalCT = null;
-    if (hasGCT) { globalCT = read(gctSize); }
+    const p0 = byte(), bgIdx = byte(); byte(); // aspect
+    const hasGCT = (p0>>7)&1;
+    const gctLen = hasGCT ? 3*(1<<((p0&7)+1)) : 0;
+    let gct = hasGCT ? data.slice(pos, pos+gctLen) : null;
+    pos += gctLen;
+
+    // accumulator RGBA (Uint8ClampedArray, full canvas size)
+    const acc  = new Uint8ClampedArray(width * height * 4); // all zeros = transparent black
+    const prev = new Uint8ClampedArray(width * height * 4);
 
     const frames = [];
-    let gce = null; // graphic control extension
+    let gce = null;
+
+    const skipSubBlocks = () => { while(true){ const n=byte(); if(!n) break; pos+=n; } };
 
     while (pos < data.length) {
-      const introducer = byte();
+      const intro = byte();
+      if (intro === 0x3B) break; // trailer
 
-      if (introducer === 0x3B) break; // trailer
-
-      if (introducer === 0x2C) {
-        // Image descriptor
-        const left = word(), top = word(), w = word(), h = word();
-        const imgPacked = byte();
-        const hasLCT = (imgPacked >> 7) & 1;
-        const interlaced = (imgPacked >> 6) & 1;
-        const lctSize = 3 * (1 << ((imgPacked & 7) + 1));
-        let ct = globalCT;
-        if (hasLCT) { ct = read(lctSize); }
-
-        const minCode = byte();
-        // Read sub-blocks
-        const compressed = [];
-        while (true) {
-          const bSize = byte();
-          if (bSize === 0) break;
-          for (let i = 0; i < bSize; i++) compressed.push(byte());
-        }
-
-        // LZW decompress
-        const pixels = lzwDecode(minCode, new Uint8Array(compressed), w * h);
-
-        // De-interlace if needed
-        let finalPixels = pixels;
-        if (interlaced) {
-          finalPixels = deinterlace(pixels, w, h);
-        }
-
-        // Build RGBA patch
-        const patch = new Uint8ClampedArray(w * h * 4);
-        const transIdx = (gce && gce.hasTransparency) ? gce.transparentIndex : -1;
-        for (let i = 0; i < w * h; i++) {
-          const ci = finalPixels[i];
-          if (ci === transIdx) {
-            patch[i*4] = patch[i*4+1] = patch[i*4+2] = patch[i*4+3] = 0;
-          } else {
-            patch[i*4]   = ct[ci*3];
-            patch[i*4+1] = ct[ci*3+1];
-            patch[i*4+2] = ct[ci*3+2];
-            patch[i*4+3] = 255;
-          }
-        }
-
-        frames.push({
-          patch, left, top, width: w, height: h,
-          delay: gce ? Math.max(gce.delay * 10, 20) : 100,
-          disposalMethod: gce ? gce.disposalMethod : 0,
-          canvasWidth: width, canvasHeight: height
-        });
-        gce = null;
-
-      } else if (introducer === 0x21) {
-        // Extension
+      if (intro === 0x21) {
         const label = byte();
         if (label === 0xF9) {
-          // Graphic Control Extension
-          byte(); // block size = 4
-          const p = byte();
-          const delay = word();
+          byte(); // block size 4
+          const fl = byte();
+          const delay = Math.max(word() * 10, 20);
           const transIdx = byte();
-          byte(); // block terminator
+          byte(); // terminator
           gce = {
-            disposalMethod: (p >> 3) & 7,
-            hasTransparency: (p & 1) === 1,
-            transparentIndex: transIdx,
+            disposal: (fl>>2)&7,
+            hasTransp: (fl&1)===1,
+            transIdx,
             delay
           };
         } else {
-          // Skip unknown extension sub-blocks
-          while (true) {
-            const bSize = byte();
-            if (bSize === 0) break;
-            pos += bSize;
+          skipSubBlocks();
+        }
+        continue;
+      }
+
+      if (intro === 0x2C) {
+        const left=word(), top=word(), fw=word(), fh=word();
+        const fp = byte();
+        const hasLCT = (fp>>7)&1;
+        const interlaced = (fp>>6)&1;
+        const lctLen = hasLCT ? 3*(1<<((fp&7)+1)) : 0;
+        const ct = hasLCT ? data.slice(pos, pos+lctLen) : gct;
+        pos += lctLen;
+
+        const minCode = byte();
+        // collect sub-blocks
+        const chunks = [];
+        while(true){ const n=byte(); if(!n) break; chunks.push(data.slice(pos,pos+n)); pos+=n; }
+        const compressed = new Uint8Array(chunks.reduce((a,c)=>a+c.length,0));
+        let off=0; for(const c of chunks){ compressed.set(c,off); off+=c.length; }
+
+        const indices = lzwDecode(minCode, compressed, fw*fh);
+        if (interlaced) deinterlaceInPlace(indices, fw, fh);
+
+        const transIdx = (gce && gce.hasTransp) ? gce.transIdx : -1;
+        const disposal = gce ? gce.disposal : 0;
+        const delay    = gce ? gce.delay : 100;
+
+        // Save acc → prev before compositing (for disposal=3)
+        prev.set(acc);
+
+        // Composite patch onto acc
+        for (let fy=0; fy<fh; fy++) {
+          for (let fx=0; fx<fw; fx++) {
+            const ci = indices[fy*fw+fx];
+            if (ci === transIdx) continue; // keep acc pixel
+            const ap = ((top+fy)*width+(left+fx))*4;
+            if (!ct) continue;
+            acc[ap]   = ct[ci*3];
+            acc[ap+1] = ct[ci*3+1];
+            acc[ap+2] = ct[ci*3+2];
+            acc[ap+3] = 255;
           }
         }
-      } else {
-        break; // unknown, stop
+
+        // Snapshot current acc as this frame
+        frames.push({ rgba: new Uint8ClampedArray(acc), width, height, delay, disposal, left, top, fw, fh });
+
+        // Apply disposal AFTER snapshot
+        if (disposal === 2) {
+          // restore to background (transparent)
+          for (let fy=0; fy<fh; fy++) {
+            for (let fx=0; fx<fw; fx++) {
+              const ap = ((top+fy)*width+(left+fx))*4;
+              acc[ap]=acc[ap+1]=acc[ap+2]=acc[ap+3]=0;
+            }
+          }
+        } else if (disposal === 3) {
+          acc.set(prev);
+        }
+        // disposal 0 or 1: keep acc as-is
+
+        gce = null;
+        continue;
       }
+
+      break; // unknown
     }
+
     return { width, height, frames };
   }
 
   function lzwDecode(minCodeSize, data, pixelCount) {
-    const clearCode = 1 << minCodeSize;
-    const eofCode = clearCode + 1;
+    const clear = 1 << minCodeSize;
+    const eof   = clear + 1;
     let codeSize = minCodeSize + 1;
-    let codeMask = (1 << codeSize) - 1;
+    let mask = (1<<codeSize)-1;
+    let bitBuf=0, bitLen=0, dPos=0;
 
-    // Build initial table
+    // table: flat Uint8Array storage for speed
+    // each entry: prefix(int) + suffix(byte) — use object array for simplicity
     let table = [];
     const initTable = () => {
       table = [];
-      for (let i = 0; i < clearCode; i++) table.push([i]);
-      table.push(null); // clear
-      table.push(null); // eof
-      codeSize = minCodeSize + 1;
-      codeMask = (1 << codeSize) - 1;
+      for (let i=0;i<clear;i++) table.push(new Uint8Array([i]));
+      table.push(null); table.push(null); // clear, eof
+      codeSize = minCodeSize+1; mask=(1<<codeSize)-1;
     };
     initTable();
 
-    const output = new Uint8Array(pixelCount);
-    let outPos = 0;
-    let bitBuf = 0, bitLen = 0, dataPos = 0;
-    let prevCode = -1;
-
     const readCode = () => {
-      while (bitLen < codeSize && dataPos < data.length) {
-        bitBuf |= data[dataPos++] << bitLen;
-        bitLen += 8;
+      while (bitLen < codeSize && dPos < data.length) {
+        bitBuf |= data[dPos++] << bitLen; bitLen += 8;
       }
-      const code = bitBuf & codeMask;
-      bitBuf >>= codeSize; bitLen -= codeSize;
-      return code;
+      const c = bitBuf & mask; bitBuf >>= codeSize; bitLen -= codeSize;
+      return c;
     };
+
+    const out = new Uint8Array(pixelCount);
+    let outPos=0, prevCode=-1;
 
     while (outPos < pixelCount) {
       const code = readCode();
-      if (code === eofCode) break;
-      if (code === clearCode) { initTable(); prevCode = -1; continue; }
+      if (code === eof || outPos >= pixelCount) break;
+      if (code === clear) { initTable(); prevCode=-1; continue; }
 
       let entry;
       if (code < table.length && table[code]) {
         entry = table[code];
-      } else if (code === table.length && prevCode !== -1) {
-        const prev = table[prevCode];
-        entry = prev.concat(prev[0]);
+      } else if (code === table.length && prevCode >= 0 && table[prevCode]) {
+        const p = table[prevCode];
+        const e = new Uint8Array(p.length+1);
+        e.set(p); e[p.length]=p[0]; entry=e;
       } else break;
 
-      for (let i = 0; i < entry.length && outPos < pixelCount; i++)
-        output[outPos++] = entry[i];
+      const toWrite = Math.min(entry.length, pixelCount-outPos);
+      out.set(entry.subarray(0,toWrite), outPos);
+      outPos += toWrite;
 
-      if (prevCode !== -1 && table.length < 4096) {
-        table.push(table[prevCode].concat(entry[0]));
-        if (table.length === (1 << codeSize) + 1 && codeSize < 12) {
-          codeSize++; codeMask = (1 << codeSize) - 1;
+      if (prevCode >= 0 && table[prevCode] && table.length < 4096) {
+        const p = table[prevCode];
+        const ne = new Uint8Array(p.length+1);
+        ne.set(p); ne[p.length]=entry[0];
+        table.push(ne);
+        if (table.length > mask && codeSize < 12) {
+          codeSize++; mask=(1<<codeSize)-1;
         }
       }
       prevCode = code;
     }
-    return output;
-  }
-
-  function deinterlace(pixels, w, h) {
-    const out = new Uint8Array(pixels.length);
-    const passes = [
-      { start: 0, step: 8 },
-      { start: 4, step: 8 },
-      { start: 2, step: 4 },
-      { start: 1, step: 2 }
-    ];
-    let srcRow = 0;
-    for (const p of passes) {
-      for (let y = p.start; y < h; y += p.step) {
-        out.set(pixels.slice(srcRow * w, (srcRow + 1) * w), y * w);
-        srcRow++;
-      }
-    }
     return out;
   }
 
-  // Composite frames onto a canvas accumulator (handle disposal)
-  function composeFrames(parsed) {
-    const { width, height, frames } = parsed;
-    const acc = document.createElement('canvas');
-    acc.width = width; acc.height = height;
-    const accCtx = acc.getContext('2d');
-    const prev = document.createElement('canvas');
-    prev.width = width; prev.height = height;
-
-    return frames.map((f, i) => {
-      // Save background before drawing (for disposal=3)
-      const prevCtx = prev.getContext('2d');
-      prevCtx.clearRect(0, 0, width, height);
-      prevCtx.drawImage(acc, 0, 0);
-
-      // Composite this frame's patch
-      const id = new ImageData(f.patch, f.width, f.height);
-      const tmp = document.createElement('canvas');
-      tmp.width = f.width; tmp.height = f.height;
-      tmp.getContext('2d').putImageData(id, 0, 0);
-      accCtx.drawImage(tmp, f.left, f.top);
-
-      // Snapshot full frame
-      const snap = document.createElement('canvas');
-      snap.width = width; snap.height = height;
-      snap.getContext('2d').drawImage(acc, 0, 0);
-
-      // Apply disposal for NEXT frame
-      if (f.disposalMethod === 2) {
-        accCtx.clearRect(f.left, f.top, f.width, f.height);
-      } else if (f.disposalMethod === 3) {
-        accCtx.clearRect(0, 0, width, height);
-        accCtx.drawImage(prev, 0, 0);
+  function deinterlaceInPlace(pixels, w, h) {
+    const tmp = pixels.slice();
+    const passes = [{s:0,step:8},{s:4,step:8},{s:2,step:4},{s:1,step:2}];
+    let srcRow = 0;
+    for (const p of passes)
+      for (let y = p.s; y < h; y += p.step) {
+        pixels.set(tmp.slice(srcRow*w, (srcRow+1)*w), y*w);
+        srcRow++;
       }
-
-      return { canvas: snap, delay: f.delay };
-    });
   }
 
-  return { parseGIF, composeFrames };
+  return { parseGIF };
 })();
 
 // ================================================================
@@ -3528,40 +3492,41 @@ const GifParser = (() => {
     document.getElementById('imgDropzone').style.display = 'none';
 
     const buf = await file.arrayBuffer();
-    let parsed, composed;
+    let parsed;
     try {
       parsed = GifParser.parseGIF(buf);
-      composed = GifParser.composeFrames(parsed);
     } catch(e) {
       showToast('Не удалось прочитать GIF: ' + e.message, 'err'); return;
     }
-    if (!composed || composed.length === 0) { showToast('GIF пустой', 'err'); return; }
+    if (!parsed.frames || parsed.frames.length === 0) { showToast('GIF пустой', 'err'); return; }
 
     // Cut at MAX_GIF_DURATION
     let totalMs = 0;
     const usedFrames = [];
-    for (const f of composed) {
+    for (const f of parsed.frames) {
       if (totalMs + f.delay > MAX_GIF_DURATION && usedFrames.length > 0) break;
       usedFrames.push(f);
       totalMs += f.delay;
     }
 
-    // Draw first composited frame as original preview
-    const origCanvas = document.getElementById('imgOrigCanvas');
-    origCanvas.width = parsed.width; origCanvas.height = parsed.height;
-    origCanvas.getContext('2d').drawImage(usedFrames[0].canvas, 0, 0);
-    document.getElementById('imgOrigMeta').textContent =
-      `${parsed.width} × ${parsed.height} · ${usedFrames.length} кадров`;
+    const gw = parsed.width, gh = parsed.height;
 
-    // Convert all composited frames to 128×64 packed bitmaps
+    // Draw first frame as original preview (use ImageData directly — no taint)
+    const origCanvas = document.getElementById('imgOrigCanvas');
+    origCanvas.width = gw; origCanvas.height = gh;
+    origCanvas.getContext('2d').putImageData(new ImageData(usedFrames[0].rgba, gw, gh), 0, 0);
+    document.getElementById('imgOrigMeta').textContent =
+      `${gw} × ${gh} · ${usedFrames.length} кадров`;
+
+    // Convert all frames: RGBA → scaled 128×64 → packed bitmap
     _isGif = true;
     _gifFrames = usedFrames.map(f => ({
-      packed: _canvasScalePack(f.canvas, parsed.width, parsed.height),
+      packed: _rgbaScalePack(f.rgba, gw, gh),
       delay: f.delay
     }));
 
     const secStr = (totalMs / 1000).toFixed(1);
-    const cutStr = composed.length > usedFrames.length ? ` (обрезано до ${MAX_GIF_DURATION/1000}с)` : '';
+    const cutStr = parsed.frames.length > usedFrames.length ? ` (обрезано до ${MAX_GIF_DURATION/1000}с)` : '';
     document.getElementById('imgGifFrames').textContent =
       `${usedFrames.length} кадров · ${secStr} сек${cutStr}`;
     document.getElementById('imgGifInfo').style.display = 'flex';
@@ -3576,12 +3541,10 @@ const GifParser = (() => {
     window._gifFrames = _gifFrames;
   }
 
-  // Scale a full-size composited canvas → 128×64 → packed bitmap
-  function _canvasScalePack(srcCanvas, srcW, srcH) {
-    const tmp = document.createElement('canvas');
-    tmp.width = W; tmp.height = H;
-    const ctx = tmp.getContext('2d');
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  // Scale RGBA pixel array (srcW×srcH) → 128×64 B&W → packed 1024-byte bitmap
+  // Uses nearest-neighbour — fast and no canvas taint issues at all
+  function _rgbaScalePack(rgba, srcW, srcH) {
+    // Step 1: compute destination rect
     let dx = 0, dy = 0, dw = W, dh = H;
     if (_scale === 'fit') {
       const r = Math.min(W / srcW, H / srcH);
@@ -3592,8 +3555,52 @@ const GifParser = (() => {
       dw = Math.round(srcW * r); dh = Math.round(srcH * r);
       dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
     }
-    ctx.drawImage(srcCanvas, dx, dy, dw, dh);
-    return _canvasToPacked(tmp);
+
+    // Step 2: build grayscale 128×64 via nearest-neighbour sampling
+    const gray = new Float32Array(W * H); // 0 = black background
+
+    for (let oy = 0; oy < dh; oy++) {
+      const sy = Math.min(Math.round(oy * srcH / dh), srcH - 1);
+      for (let ox = 0; ox < dw; ox++) {
+        const sx = Math.min(Math.round(ox * srcW / dw), srcW - 1);
+        const sp = (sy * srcW + sx) * 4;
+        const alpha = rgba[sp + 3] / 255;
+        // blend with black background
+        const r = rgba[sp]   * alpha;
+        const g = rgba[sp+1] * alpha;
+        const b = rgba[sp+2] * alpha;
+        gray[(dy + oy) * W + (dx + ox)] = 0.299*r + 0.587*g + 0.114*b;
+      }
+    }
+
+    // Step 3: dither / threshold
+    const bw = new Uint8Array(W * H);
+    if (_dither === 'floyd') {
+      const err = gray.slice();
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y*W+x, old = err[idx];
+        const nw = old < _threshold ? 0 : 255; bw[idx] = nw;
+        const e = old - nw;
+        if (x+1 < W)             err[idx+1]   += e*7/16;
+        if (x-1>=0 && y+1 < H)  err[idx+W-1] += e*3/16;
+        if (y+1 < H)             err[idx+W]   += e*5/16;
+        if (x+1<W && y+1<H)     err[idx+W+1] += e*1/16;
+      }
+    } else if (_dither === 'ordered') {
+      const bayer = [[0,128,32,160],[96,32,224,160],[24,152,56,184],[120,48,216,144]];
+      for (let i = 0; i < W*H; i++)
+        bw[i] = gray[i] + bayer[Math.floor(i/W)%4][i%W%4] - 128 < _threshold ? 0 : 255;
+    } else {
+      for (let i = 0; i < W*H; i++) bw[i] = gray[i] < _threshold ? 0 : 255;
+    }
+
+    // Step 4: pack to 1024 bytes
+    const packed = new Uint8Array(W * H / 8);
+    for (let i = 0; i < W*H; i++) {
+      const v = _invert ? 255 - bw[i] : bw[i];
+      if (v > 127) packed[i>>3] |= (1 << (7-(i&7)));
+    }
+    return packed;
   }
 
   function _canvasToPacked(canvas) {
@@ -3601,33 +3608,29 @@ const GifParser = (() => {
     const gray = new Float32Array(W * H);
     for (let i = 0; i < W * H; i++)
       gray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
-
     const bw = new Uint8Array(W * H);
     if (_dither === 'floyd') {
       const err = gray.slice();
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const idx = y * W + x, old = err[idx];
+        const idx = y*W+x, old = err[idx];
         const nw = old < _threshold ? 0 : 255; bw[idx] = nw;
         const e = old - nw;
-        if (x+1 < W)              err[idx+1]   += e*7/16;
-        if (x-1 >= 0 && y+1 < H) err[idx+W-1] += e*3/16;
-        if (y+1 < H)              err[idx+W]   += e*5/16;
-        if (x+1 < W && y+1 < H)  err[idx+W+1] += e*1/16;
+        if (x+1<W)             err[idx+1]   += e*7/16;
+        if (x-1>=0&&y+1<H)    err[idx+W-1] += e*3/16;
+        if (y+1<H)             err[idx+W]   += e*5/16;
+        if (x+1<W&&y+1<H)     err[idx+W+1] += e*1/16;
       }
     } else if (_dither === 'ordered') {
       const bayer = [[0,128,32,160],[96,32,224,160],[24,152,56,184],[120,48,216,144]];
-      for (let i = 0; i < W*H; i++) {
+      for (let i = 0; i < W*H; i++)
         bw[i] = gray[i] + bayer[Math.floor(i/W)%4][i%W%4] - 128 < _threshold ? 0 : 255;
-      }
     } else {
       for (let i = 0; i < W*H; i++) bw[i] = gray[i] < _threshold ? 0 : 255;
     }
-
-    // Pack to 1024 bytes
     const packed = new Uint8Array(W * H / 8);
-    for (let i = 0; i < W * H; i++) {
+    for (let i = 0; i < W*H; i++) {
       const v = _invert ? 255 - bw[i] : bw[i];
-      if (v > 127) packed[i >> 3] |= (1 << (7 - (i & 7)));
+      if (v > 127) packed[i>>3] |= (1 << (7-(i&7)));
     }
     return packed;
   }
