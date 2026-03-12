@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/dist/gifuct-js.js"></script>
 
 <style>
   :root {
@@ -3232,6 +3231,242 @@ window.onload = init;
 window.addEventListener('resize', pillPos);
 draw();
 
+
+// ================================================================
+// INLINE GIF PARSER (no external deps)
+// Parses GIF89a/GIF87a: extracts frames with delays as ImageData
+// ================================================================
+const GifParser = (() => {
+  function parseGIF(buffer) {
+    const data = new Uint8Array(buffer);
+    let pos = 0;
+
+    const read = (n) => { const s = pos; pos += n; return data.slice(s, pos); };
+    const byte = () => data[pos++];
+    const word = () => { const v = data[pos] | (data[pos+1] << 8); pos += 2; return v; };
+
+    // Header
+    const sig = String.fromCharCode(...read(6));
+    if (!sig.startsWith('GIF')) throw new Error('Not a GIF');
+
+    const width = word(), height = word();
+    const packed = byte();
+    const bgColor = byte(), aspect = byte();
+    const hasGCT = (packed >> 7) & 1;
+    const gctSize = 3 * (1 << ((packed & 7) + 1));
+    let globalCT = null;
+    if (hasGCT) { globalCT = read(gctSize); }
+
+    const frames = [];
+    let gce = null; // graphic control extension
+
+    while (pos < data.length) {
+      const introducer = byte();
+
+      if (introducer === 0x3B) break; // trailer
+
+      if (introducer === 0x2C) {
+        // Image descriptor
+        const left = word(), top = word(), w = word(), h = word();
+        const imgPacked = byte();
+        const hasLCT = (imgPacked >> 7) & 1;
+        const interlaced = (imgPacked >> 6) & 1;
+        const lctSize = 3 * (1 << ((imgPacked & 7) + 1));
+        let ct = globalCT;
+        if (hasLCT) { ct = read(lctSize); }
+
+        const minCode = byte();
+        // Read sub-blocks
+        const compressed = [];
+        while (true) {
+          const bSize = byte();
+          if (bSize === 0) break;
+          for (let i = 0; i < bSize; i++) compressed.push(byte());
+        }
+
+        // LZW decompress
+        const pixels = lzwDecode(minCode, new Uint8Array(compressed), w * h);
+
+        // De-interlace if needed
+        let finalPixels = pixels;
+        if (interlaced) {
+          finalPixels = deinterlace(pixels, w, h);
+        }
+
+        // Build RGBA patch
+        const patch = new Uint8ClampedArray(w * h * 4);
+        const transIdx = (gce && gce.hasTransparency) ? gce.transparentIndex : -1;
+        for (let i = 0; i < w * h; i++) {
+          const ci = finalPixels[i];
+          if (ci === transIdx) {
+            patch[i*4] = patch[i*4+1] = patch[i*4+2] = patch[i*4+3] = 0;
+          } else {
+            patch[i*4]   = ct[ci*3];
+            patch[i*4+1] = ct[ci*3+1];
+            patch[i*4+2] = ct[ci*3+2];
+            patch[i*4+3] = 255;
+          }
+        }
+
+        frames.push({
+          patch, left, top, width: w, height: h,
+          delay: gce ? Math.max(gce.delay * 10, 20) : 100,
+          disposalMethod: gce ? gce.disposalMethod : 0,
+          canvasWidth: width, canvasHeight: height
+        });
+        gce = null;
+
+      } else if (introducer === 0x21) {
+        // Extension
+        const label = byte();
+        if (label === 0xF9) {
+          // Graphic Control Extension
+          byte(); // block size = 4
+          const p = byte();
+          const delay = word();
+          const transIdx = byte();
+          byte(); // block terminator
+          gce = {
+            disposalMethod: (p >> 3) & 7,
+            hasTransparency: (p & 1) === 1,
+            transparentIndex: transIdx,
+            delay
+          };
+        } else {
+          // Skip unknown extension sub-blocks
+          while (true) {
+            const bSize = byte();
+            if (bSize === 0) break;
+            pos += bSize;
+          }
+        }
+      } else {
+        break; // unknown, stop
+      }
+    }
+    return { width, height, frames };
+  }
+
+  function lzwDecode(minCodeSize, data, pixelCount) {
+    const clearCode = 1 << minCodeSize;
+    const eofCode = clearCode + 1;
+    let codeSize = minCodeSize + 1;
+    let codeMask = (1 << codeSize) - 1;
+
+    // Build initial table
+    let table = [];
+    const initTable = () => {
+      table = [];
+      for (let i = 0; i < clearCode; i++) table.push([i]);
+      table.push(null); // clear
+      table.push(null); // eof
+      codeSize = minCodeSize + 1;
+      codeMask = (1 << codeSize) - 1;
+    };
+    initTable();
+
+    const output = new Uint8Array(pixelCount);
+    let outPos = 0;
+    let bitBuf = 0, bitLen = 0, dataPos = 0;
+    let prevCode = -1;
+
+    const readCode = () => {
+      while (bitLen < codeSize && dataPos < data.length) {
+        bitBuf |= data[dataPos++] << bitLen;
+        bitLen += 8;
+      }
+      const code = bitBuf & codeMask;
+      bitBuf >>= codeSize; bitLen -= codeSize;
+      return code;
+    };
+
+    while (outPos < pixelCount) {
+      const code = readCode();
+      if (code === eofCode) break;
+      if (code === clearCode) { initTable(); prevCode = -1; continue; }
+
+      let entry;
+      if (code < table.length && table[code]) {
+        entry = table[code];
+      } else if (code === table.length && prevCode !== -1) {
+        const prev = table[prevCode];
+        entry = prev.concat(prev[0]);
+      } else break;
+
+      for (let i = 0; i < entry.length && outPos < pixelCount; i++)
+        output[outPos++] = entry[i];
+
+      if (prevCode !== -1 && table.length < 4096) {
+        table.push(table[prevCode].concat(entry[0]));
+        if (table.length === (1 << codeSize) + 1 && codeSize < 12) {
+          codeSize++; codeMask = (1 << codeSize) - 1;
+        }
+      }
+      prevCode = code;
+    }
+    return output;
+  }
+
+  function deinterlace(pixels, w, h) {
+    const out = new Uint8Array(pixels.length);
+    const passes = [
+      { start: 0, step: 8 },
+      { start: 4, step: 8 },
+      { start: 2, step: 4 },
+      { start: 1, step: 2 }
+    ];
+    let srcRow = 0;
+    for (const p of passes) {
+      for (let y = p.start; y < h; y += p.step) {
+        out.set(pixels.slice(srcRow * w, (srcRow + 1) * w), y * w);
+        srcRow++;
+      }
+    }
+    return out;
+  }
+
+  // Composite frames onto a canvas accumulator (handle disposal)
+  function composeFrames(parsed) {
+    const { width, height, frames } = parsed;
+    const acc = document.createElement('canvas');
+    acc.width = width; acc.height = height;
+    const accCtx = acc.getContext('2d');
+    const prev = document.createElement('canvas');
+    prev.width = width; prev.height = height;
+
+    return frames.map((f, i) => {
+      // Save background before drawing (for disposal=3)
+      const prevCtx = prev.getContext('2d');
+      prevCtx.clearRect(0, 0, width, height);
+      prevCtx.drawImage(acc, 0, 0);
+
+      // Composite this frame's patch
+      const id = new ImageData(f.patch, f.width, f.height);
+      const tmp = document.createElement('canvas');
+      tmp.width = f.width; tmp.height = f.height;
+      tmp.getContext('2d').putImageData(id, 0, 0);
+      accCtx.drawImage(tmp, f.left, f.top);
+
+      // Snapshot full frame
+      const snap = document.createElement('canvas');
+      snap.width = width; snap.height = height;
+      snap.getContext('2d').drawImage(acc, 0, 0);
+
+      // Apply disposal for NEXT frame
+      if (f.disposalMethod === 2) {
+        accCtx.clearRect(f.left, f.top, f.width, f.height);
+      } else if (f.disposalMethod === 3) {
+        accCtx.clearRect(0, 0, width, height);
+        accCtx.drawImage(prev, 0, 0);
+      }
+
+      return { canvas: snap, delay: f.delay };
+    });
+  }
+
+  return { parseGIF, composeFrames };
+})();
+
 // ================================================================
 // IMAGE CONVERTER
 // ================================================================
@@ -3293,43 +3528,40 @@ draw();
     document.getElementById('imgDropzone').style.display = 'none';
 
     const buf = await file.arrayBuffer();
-    let parsed, frames;
+    let parsed, composed;
     try {
-      parsed = gifuct.parseGIF(buf);
-      frames = gifuct.decompressFrames(parsed, true);
+      parsed = GifParser.parseGIF(buf);
+      composed = GifParser.composeFrames(parsed);
     } catch(e) {
-      showToast('Не удалось прочитать GIF', 'err'); return;
+      showToast('Не удалось прочитать GIF: ' + e.message, 'err'); return;
     }
-    if (!frames || frames.length === 0) { showToast('GIF пустой', 'err'); return; }
+    if (!composed || composed.length === 0) { showToast('GIF пустой', 'err'); return; }
 
-    // Build cumulative time, cut at MAX_GIF_DURATION
+    // Cut at MAX_GIF_DURATION
     let totalMs = 0;
     const usedFrames = [];
-    for (const f of frames) {
-      const delay = (f.delay || 10) * 10; // centiseconds → ms
-      if (totalMs + delay > MAX_GIF_DURATION && usedFrames.length > 0) break;
-      usedFrames.push({ raw: f, delay: Math.max(delay, 20) });
-      totalMs += delay;
+    for (const f of composed) {
+      if (totalMs + f.delay > MAX_GIF_DURATION && usedFrames.length > 0) break;
+      usedFrames.push(f);
+      totalMs += f.delay;
     }
 
-    // Draw first frame as original preview
-    const fw = frames[0].dims.width, fh = frames[0].dims.height;
+    // Draw first composited frame as original preview
     const origCanvas = document.getElementById('imgOrigCanvas');
-    origCanvas.width = fw; origCanvas.height = fh;
-    const tmpCtx = origCanvas.getContext('2d');
-    const firstData = new ImageData(new Uint8ClampedArray(frames[0].patch), fw, fh);
-    tmpCtx.putImageData(firstData, 0, 0);
-    document.getElementById('imgOrigMeta').textContent = `${fw} × ${fh} · ${usedFrames.length} кадров`;
+    origCanvas.width = parsed.width; origCanvas.height = parsed.height;
+    origCanvas.getContext('2d').drawImage(usedFrames[0].canvas, 0, 0);
+    document.getElementById('imgOrigMeta').textContent =
+      `${parsed.width} × ${parsed.height} · ${usedFrames.length} кадров`;
 
-    // Convert all frames to 128×64 packed bitmaps
+    // Convert all composited frames to 128×64 packed bitmaps
     _isGif = true;
-    _gifFrames = usedFrames.map(({raw, delay}) => {
-      const packed = _convertFrameToBitmap(raw);
-      return { packed, delay };
-    });
+    _gifFrames = usedFrames.map(f => ({
+      packed: _canvasScalePack(f.canvas, parsed.width, parsed.height),
+      delay: f.delay
+    }));
 
     const secStr = (totalMs / 1000).toFixed(1);
-    const cutStr = frames.length > usedFrames.length ? ` (обрезано до ${MAX_GIF_DURATION/1000}с)` : '';
+    const cutStr = composed.length > usedFrames.length ? ` (обрезано до ${MAX_GIF_DURATION/1000}с)` : '';
     document.getElementById('imgGifFrames').textContent =
       `${usedFrames.length} кадров · ${secStr} сек${cutStr}`;
     document.getElementById('imgGifInfo').style.display = 'flex';
@@ -3337,42 +3569,30 @@ draw();
     document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
     document.getElementById('imgBwMeta').textContent = `${usedFrames.length} кадров`;
 
-    // Start preview playback
     _gifCurFrame = 0;
+    _stopGifPlayback();
     _playGifFrame();
     window._imgBwCanvas = document.getElementById('imgBwCanvas');
-    window._gifFrames = _gifFrames; // expose for send/save
+    window._gifFrames = _gifFrames;
   }
 
-  function _convertFrameToBitmap(rawFrame) {
-    // rawFrame.patch is Uint8ClampedArray RGBA of the frame patch
-    // rawFrame.dims: {top, left, width, height}
+  // Scale a full-size composited canvas → 128×64 → packed bitmap
+  function _canvasScalePack(srcCanvas, srcW, srcH) {
     const tmp = document.createElement('canvas');
     tmp.width = W; tmp.height = H;
     const ctx = tmp.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-
-    const fw = rawFrame.dims.width, fh = rawFrame.dims.height;
-    const src = document.createElement('canvas');
-    src.width = fw; src.height = fh;
-    src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rawFrame.patch), fw, fh), 0, 0);
-
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     let dx = 0, dy = 0, dw = W, dh = H;
     if (_scale === 'fit') {
-      const r = Math.min(W / fh, H / fh); // use full GIF dims if available
-      // Actually scale from raw frame dims relative to full gif dims
-      // We use the full rendered frame (patch already composited by gifuct with true=composite)
-      const r2 = Math.min(W / fw, H / fh);
-      dw = Math.round(fw * r2); dh = Math.round(fh * r2);
+      const r = Math.min(W / srcW, H / srcH);
+      dw = Math.round(srcW * r); dh = Math.round(srcH * r);
       dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
     } else if (_scale === 'fill') {
-      const r = Math.max(W / fw, H / fh);
-      dw = Math.round(fw * r); dh = Math.round(fh * r);
+      const r = Math.max(W / srcW, H / srcH);
+      dw = Math.round(srcW * r); dh = Math.round(srcH * r);
       dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
     }
-    ctx.drawImage(src, dx, dy, dw, dh);
-
+    ctx.drawImage(srcCanvas, dx, dy, dw, dh);
     return _canvasToPacked(tmp);
   }
 
