@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/dist/gifuct-js.js"></script>
 
 <style>
   :root {
@@ -660,6 +661,22 @@
   /* image presets grid */
   .img-presets-label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; }
   .img-presets-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+  /* GIF animation */
+  .img-gif-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 3px 10px; font-family: var(--mono);
+    font-size: 9px; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .img-gif-badge .gif-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse-green 1.2s ease infinite; }
+  .img-gif-info { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .img-gif-frames { font-family: var(--mono); font-size: 9px; color: var(--text-muted); }
+  .img-bw-wrap { position: relative; }
+  .img-gif-play-indicator {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(0,0,0,0.6); border-radius: 4px; padding: 2px 5px;
+    font-family: var(--mono); font-size: 8px; color: var(--accent); pointer-events: none;
+  }
   .img-preset-btn {
     display: block; position: relative; border-radius: 8px; border: 1px solid var(--border);
     background: var(--surface); cursor: pointer; overflow: hidden; padding: 0;
@@ -793,16 +810,16 @@
         <span class="nav-lbl">Eyes</span>
       </button>
       <button class="nav-btn" data-tab="1" onclick="switchTab(1, this)">
+        <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+        <span class="nav-lbl">Image</span>
+      </button>
+      <button class="nav-btn" data-tab="2" onclick="switchTab(2, this)">
         <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
         <span class="nav-lbl">Sensors</span>
       </button>
-      <button class="nav-btn" data-tab="2" onclick="switchTab(2, this)">
+      <button class="nav-btn" data-tab="3" onclick="switchTab(3, this)">
         <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></span>
         <span class="nav-lbl">ESP32</span>
-      </button>
-      <button class="nav-btn" data-tab="3" onclick="switchTab(3, this)">
-        <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
-        <span class="nav-lbl">Image</span>
       </button>
     </div>
   </div>
@@ -1041,6 +1058,12 @@
 
     <!-- Preview: original + converted -->
     <div id="imgPreviewSection" style="display:none">
+      <!-- GIF info row (hidden for static images) -->
+      <div id="imgGifInfo" style="display:none" class="img-gif-info">
+        <div class="img-gif-badge"><span class="gif-dot"></span>GIF АНИМАЦИЯ</div>
+        <span class="img-gif-frames" id="imgGifFrames">0 кадров · 0.0 сек</span>
+      </div>
+
       <div class="img-preview-grid">
         <div class="img-preview-card">
           <div class="img-preview-label">ОРИГИНАЛ</div>
@@ -1048,9 +1071,12 @@
           <div class="img-preview-meta" id="imgOrigMeta">—</div>
         </div>
         <div class="img-preview-card">
-          <div class="img-preview-label">128 × 64 · B&W</div>
-          <div class="img-bw-wrap"><canvas id="imgBwCanvas" class="img-bw-canvas"></canvas></div>
-          <div class="img-preview-meta">128 × 64 px</div>
+          <div class="img-preview-label" id="imgBwLabel">128 × 64 · B&W</div>
+          <div class="img-bw-wrap">
+            <canvas id="imgBwCanvas" class="img-bw-canvas"></canvas>
+            <div class="img-gif-play-indicator" id="imgGifIndicator" style="display:none">▶ GIF</div>
+          </div>
+          <div class="img-preview-meta" id="imgBwMeta">128 × 64 px</div>
         </div>
       </div>
 
@@ -1428,10 +1454,13 @@
   const userImgCol = (uid) => collection(db, 'users', uid, 'image_presets');
   const userImgDoc = (uid, id) => doc(db, 'users', uid, 'image_presets', id);
 
-  window.fsAddImagePreset = async (name, dataUrl) => {
+  window.fsAddImagePreset = async (name, dataUrl, gifData) => {
     const uid = window.currentUser?.uid;
     if (!uid) throw new Error('Not authenticated');
-    return await addDoc(userImgCol(uid), { name, dataUrl, createdAt: serverTimestamp() });
+    const payload = { name, createdAt: serverTimestamp() };
+    if (gifData) { payload.gifData = gifData; payload.isGif = true; }
+    else { payload.dataUrl = dataUrl; payload.isGif = false; }
+    return await addDoc(userImgCol(uid), payload);
   };
 
   window.fsDeleteImagePreset = async (id) => {
@@ -1502,24 +1531,45 @@ window.onImagePresetsLoaded = function(presets) {
   renderImagePresets();
 };
 
+// Timers for GIF thumbnails in preset grid
+const _presetGifTimers = {};
+
 function renderImagePresets() {
   const grid = document.getElementById('imgPresetsInner');
   const wrap = document.getElementById('imgPresetsGrid');
   if (!grid || !wrap) return;
+  // Stop all running gif thumb timers
+  Object.values(_presetGifTimers).forEach(t => clearTimeout(t));
+  for (const k in _presetGifTimers) delete _presetGifTimers[k];
   grid.innerHTML = '';
-  if (cloudImagePresets.length === 0) {
-    wrap.style.display = 'none';
-    return;
-  }
+  if (cloudImagePresets.length === 0) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
+
   cloudImagePresets.forEach(preset => {
     const btn = document.createElement('div');
     btn.className = 'img-preset-btn';
     btn.onclick = () => applyImagePreset(preset);
 
     const thumb = document.createElement('img');
-    thumb.src = preset.dataUrl;
+    // Static or first GIF frame
+    thumb.src = preset.isGif ? preset.gifData[0].dataUrl : preset.dataUrl;
     btn.appendChild(thumb);
+
+    // GIF badge
+    if (preset.isGif) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;top:3px;left:3px;background:rgba(0,0,0,0.65);border-radius:3px;padding:1px 4px;font-family:var(--mono);font-size:7px;color:var(--accent);pointer-events:none';
+      badge.textContent = 'GIF';
+      btn.appendChild(badge);
+      // Animate thumbnail
+      let fi = 0;
+      const animThumb = () => {
+        fi = (fi + 1) % preset.gifData.length;
+        thumb.src = preset.gifData[fi].dataUrl;
+        _presetGifTimers[preset.id] = setTimeout(animThumb, preset.gifData[fi].delay || 100);
+      };
+      _presetGifTimers[preset.id] = setTimeout(animThumb, preset.gifData[0].delay || 100);
+    }
 
     const name = document.createElement('div');
     name.className = 'img-preset-name';
@@ -1538,6 +1588,7 @@ function renderImagePresets() {
 
 async function deleteImagePreset(id, name) {
   if (!window.fsDeleteImagePreset) return;
+  if (_presetGifTimers[id]) { clearTimeout(_presetGifTimers[id]); delete _presetGifTimers[id]; }
   try {
     await window.fsDeleteImagePreset(id);
     showToast(`«${name || 'IMAGE'}» удалено`, 'ok');
@@ -1545,25 +1596,66 @@ async function deleteImagePreset(id, name) {
 }
 
 function applyImagePreset(preset) {
-  // Load dataUrl into converter and apply
-  const img = new Image();
-  img.onload = () => {
-    window._imgBwCanvas = null;
-    // Recreate the b&w canvas from stored dataUrl (already converted)
-    const c = document.getElementById('imgBwCanvas');
-    c.width = 128; c.height = 64;
-    c.getContext('2d').drawImage(img, 0, 0, 128, 64);
-    window._imgBwCanvas = c;
-    // Show in orig preview too
-    const orig = document.getElementById('imgOrigCanvas');
-    orig.width = img.width; orig.height = img.height;
-    orig.getContext('2d').drawImage(img, 0, 0);
-    document.getElementById('imgOrigMeta').textContent = preset.name || 'IMAGE';
+  if (preset.isGif && preset.gifData) {
+    // Restore GIF state
+    window._gifFrames = preset.gifData.map(f => {
+      // Convert dataUrl back to packed bitmap
+      const img = new Image();
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 64;
+      img.onload = () => c.getContext('2d').drawImage(img, 0, 0, 128, 64);
+      img.src = f.dataUrl;
+      // packed: we'll rebuild on send via canvas
+      return { dataUrl: f.dataUrl, delay: f.delay, _canvas: c };
+    });
+    // Show in preview — animate
     document.getElementById('imgPreviewSection').style.display = 'block';
     document.getElementById('imgDropzone').style.display = 'none';
-    showToast('Пресет загружен', 'ok');
-  };
-  img.src = preset.dataUrl;
+    document.getElementById('imgGifInfo').style.display = 'flex';
+    document.getElementById('imgGifIndicator').style.display = 'block';
+    document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
+    document.getElementById('imgBwMeta').textContent = `${preset.gifData.length} кадров`;
+    document.getElementById('imgGifFrames').textContent = `${preset.gifData.length} кадров (пресет)`;
+    document.getElementById('imgOrigMeta').textContent = preset.name || 'GIF';
+    // Animate bwCanvas from preset frames
+    let fi = 0;
+    let gifTimer = null;
+    const playPresetFrame = () => {
+      const frame = preset.gifData[fi];
+      const bwCanvas = document.getElementById('imgBwCanvas');
+      const img = new Image();
+      img.onload = () => {
+        bwCanvas.width = 128; bwCanvas.height = 64;
+        bwCanvas.getContext('2d').drawImage(img, 0, 0);
+        document.getElementById('imgGifIndicator').textContent = `▶ ${fi+1}/${preset.gifData.length}`;
+      };
+      img.src = frame.dataUrl;
+      fi = (fi + 1) % preset.gifData.length;
+      gifTimer = setTimeout(playPresetFrame, frame.delay || 100);
+    };
+    playPresetFrame();
+    showToast('GIF пресет загружен', 'ok');
+  } else {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.getElementById('imgBwCanvas');
+      c.width = 128; c.height = 64;
+      c.getContext('2d').drawImage(img, 0, 0, 128, 64);
+      window._imgBwCanvas = c;
+      const orig = document.getElementById('imgOrigCanvas');
+      orig.width = img.width; orig.height = img.height;
+      orig.getContext('2d').drawImage(img, 0, 0);
+      document.getElementById('imgOrigMeta').textContent = preset.name || 'IMAGE';
+      document.getElementById('imgGifInfo').style.display = 'none';
+      document.getElementById('imgGifIndicator').style.display = 'none';
+      document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
+      document.getElementById('imgBwMeta').textContent = '128 × 64 px';
+      document.getElementById('imgPreviewSection').style.display = 'block';
+      document.getElementById('imgDropzone').style.display = 'none';
+      showToast('Пресет загружен', 'ok');
+    };
+    img.src = preset.dataUrl;
+  }
 }
 let cloudTextPresets = [];   // [{id, lang, text}]
 
@@ -2691,14 +2783,14 @@ function pillPos() {
 function switchTab(index, btn) {
   if (index === curTab) return;
   curTab = index;
-  const tabIds = ['eyes','sensors','esp','image'];
+  const tabIds = ['eyes','image','sensors','esp'];
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(tabIds[index]).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   pillPos();
   if (index === 0) setTimeout(resizeCanvas, 50);
-  if (index === 1 && model3dVisible && three.initialized) { setTimeout(resize3DCanvas, 50); if (!three.animFrameId) animate3D(); }
+  if (index === 2 && model3dVisible && three.initialized) { setTimeout(resize3DCanvas, 50); if (!three.animFrameId) animate3D(); }
 }
 
 function updateManualStyleUI() {
@@ -3144,116 +3236,240 @@ draw();
 // IMAGE CONVERTER
 // ================================================================
 (function() {
-  let _srcImage   = null;   // original HTMLImageElement
+  let _srcImage   = null;   // original HTMLImageElement (static)
   let _srcFile    = null;   // File object
   let _dither     = 'none';
   let _scale      = 'fit';
   let _threshold  = 128;
   let _invert     = false;
 
+  // GIF state
+  let _isGif        = false;
+  let _gifFrames    = [];   // [{bitmap: ImageData 128x64 packed Uint8Array, delay: ms}]
+  let _gifPlayTimer = null;
+  let _gifCurFrame  = 0;
+
   const W = 128, H = 64;
+  const MAX_GIF_DURATION = 5000; // 5 sec hard cap
 
   // ── Load file ──────────────────────────────────────────────────
   window.handleImageFile = function(file) {
     if (!file || !file.type.startsWith('image/')) return;
     _srcFile = file;
+    _stopGifPlayback();
+    _isGif = false;
+    _gifFrames = [];
+
+    if (file.type === 'image/gif') {
+      _loadGif(file);
+    } else {
+      _loadStatic(file);
+    }
+  };
+
+  function _loadStatic(file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       _srcImage = img;
       URL.revokeObjectURL(url);
-
-      // Draw original preview — натуральный размер, CSS crop покажет центр
       const origCanvas = document.getElementById('imgOrigCanvas');
-      origCanvas.width  = img.width;
-      origCanvas.height = img.height;
+      origCanvas.width = img.width; origCanvas.height = img.height;
       origCanvas.getContext('2d').drawImage(img, 0, 0);
       document.getElementById('imgOrigMeta').textContent = `${img.width} × ${img.height} px`;
-
+      document.getElementById('imgGifInfo').style.display = 'none';
+      document.getElementById('imgGifIndicator').style.display = 'none';
+      document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
+      document.getElementById('imgBwMeta').textContent = '128 × 64 px';
       document.getElementById('imgPreviewSection').style.display = 'block';
       document.getElementById('imgDropzone').style.display = 'none';
       convertImage();
     };
     img.src = url;
-  };
+  }
 
-  // ── Convert to 128×64 B&W ─────────────────────────────────────
-  window.convertImage = function() {
-    if (!_srcImage) return;
-    _threshold = parseInt(document.getElementById('thresholdSlider').value);
+  async function _loadGif(file) {
+    document.getElementById('imgPreviewSection').style.display = 'block';
+    document.getElementById('imgDropzone').style.display = 'none';
 
-    // Step 1 — draw scaled source into 128×64 offscreen canvas
+    const buf = await file.arrayBuffer();
+    let parsed, frames;
+    try {
+      parsed = gifuct.parseGIF(buf);
+      frames = gifuct.decompressFrames(parsed, true);
+    } catch(e) {
+      showToast('Не удалось прочитать GIF', 'err'); return;
+    }
+    if (!frames || frames.length === 0) { showToast('GIF пустой', 'err'); return; }
+
+    // Build cumulative time, cut at MAX_GIF_DURATION
+    let totalMs = 0;
+    const usedFrames = [];
+    for (const f of frames) {
+      const delay = (f.delay || 10) * 10; // centiseconds → ms
+      if (totalMs + delay > MAX_GIF_DURATION && usedFrames.length > 0) break;
+      usedFrames.push({ raw: f, delay: Math.max(delay, 20) });
+      totalMs += delay;
+    }
+
+    // Draw first frame as original preview
+    const fw = frames[0].dims.width, fh = frames[0].dims.height;
+    const origCanvas = document.getElementById('imgOrigCanvas');
+    origCanvas.width = fw; origCanvas.height = fh;
+    const tmpCtx = origCanvas.getContext('2d');
+    const firstData = new ImageData(new Uint8ClampedArray(frames[0].patch), fw, fh);
+    tmpCtx.putImageData(firstData, 0, 0);
+    document.getElementById('imgOrigMeta').textContent = `${fw} × ${fh} · ${usedFrames.length} кадров`;
+
+    // Convert all frames to 128×64 packed bitmaps
+    _isGif = true;
+    _gifFrames = usedFrames.map(({raw, delay}) => {
+      const packed = _convertFrameToBitmap(raw);
+      return { packed, delay };
+    });
+
+    const secStr = (totalMs / 1000).toFixed(1);
+    const cutStr = frames.length > usedFrames.length ? ` (обрезано до ${MAX_GIF_DURATION/1000}с)` : '';
+    document.getElementById('imgGifFrames').textContent =
+      `${usedFrames.length} кадров · ${secStr} сек${cutStr}`;
+    document.getElementById('imgGifInfo').style.display = 'flex';
+    document.getElementById('imgGifIndicator').style.display = 'block';
+    document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
+    document.getElementById('imgBwMeta').textContent = `${usedFrames.length} кадров`;
+
+    // Start preview playback
+    _gifCurFrame = 0;
+    _playGifFrame();
+    window._imgBwCanvas = document.getElementById('imgBwCanvas');
+    window._gifFrames = _gifFrames; // expose for send/save
+  }
+
+  function _convertFrameToBitmap(rawFrame) {
+    // rawFrame.patch is Uint8ClampedArray RGBA of the frame patch
+    // rawFrame.dims: {top, left, width, height}
     const tmp = document.createElement('canvas');
     tmp.width = W; tmp.height = H;
     const ctx = tmp.getContext('2d');
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
+    const fw = rawFrame.dims.width, fh = rawFrame.dims.height;
+    const src = document.createElement('canvas');
+    src.width = fw; src.height = fh;
+    src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rawFrame.patch), fw, fh), 0, 0);
+
+    let dx = 0, dy = 0, dw = W, dh = H;
+    if (_scale === 'fit') {
+      const r = Math.min(W / fh, H / fh); // use full GIF dims if available
+      // Actually scale from raw frame dims relative to full gif dims
+      // We use the full rendered frame (patch already composited by gifuct with true=composite)
+      const r2 = Math.min(W / fw, H / fh);
+      dw = Math.round(fw * r2); dh = Math.round(fh * r2);
+      dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
+    } else if (_scale === 'fill') {
+      const r = Math.max(W / fw, H / fh);
+      dw = Math.round(fw * r); dh = Math.round(fh * r);
+      dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
+    }
+    ctx.drawImage(src, dx, dy, dw, dh);
+
+    return _canvasToPacked(tmp);
+  }
+
+  function _canvasToPacked(canvas) {
+    const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+    const gray = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++)
+      gray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+
+    const bw = new Uint8Array(W * H);
+    if (_dither === 'floyd') {
+      const err = gray.slice();
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y * W + x, old = err[idx];
+        const nw = old < _threshold ? 0 : 255; bw[idx] = nw;
+        const e = old - nw;
+        if (x+1 < W)              err[idx+1]   += e*7/16;
+        if (x-1 >= 0 && y+1 < H) err[idx+W-1] += e*3/16;
+        if (y+1 < H)              err[idx+W]   += e*5/16;
+        if (x+1 < W && y+1 < H)  err[idx+W+1] += e*1/16;
+      }
+    } else if (_dither === 'ordered') {
+      const bayer = [[0,128,32,160],[96,32,224,160],[24,152,56,184],[120,48,216,144]];
+      for (let i = 0; i < W*H; i++) {
+        bw[i] = gray[i] + bayer[Math.floor(i/W)%4][i%W%4] - 128 < _threshold ? 0 : 255;
+      }
+    } else {
+      for (let i = 0; i < W*H; i++) bw[i] = gray[i] < _threshold ? 0 : 255;
+    }
+
+    // Pack to 1024 bytes
+    const packed = new Uint8Array(W * H / 8);
+    for (let i = 0; i < W * H; i++) {
+      const v = _invert ? 255 - bw[i] : bw[i];
+      if (v > 127) packed[i >> 3] |= (1 << (7 - (i & 7)));
+    }
+    return packed;
+  }
+
+  function _packedToCanvas(packed, canvas) {
+    canvas.width = W; canvas.height = H;
+    const out = canvas.getContext('2d').createImageData(W, H);
+    for (let i = 0; i < W * H; i++) {
+      const v = (packed[i >> 3] & (1 << (7 - (i & 7)))) ? 255 : 0;
+      out.data[i*4] = out.data[i*4+1] = out.data[i*4+2] = v;
+      out.data[i*4+3] = 255;
+    }
+    canvas.getContext('2d').putImageData(out, 0, 0);
+  }
+
+  function _playGifFrame() {
+    if (!_isGif || _gifFrames.length === 0) return;
+    const frame = _gifFrames[_gifCurFrame];
+    const bwCanvas = document.getElementById('imgBwCanvas');
+    _packedToCanvas(frame.packed, bwCanvas);
+    // Update indicator
+    const ind = document.getElementById('imgGifIndicator');
+    if (ind) ind.textContent = `▶ ${_gifCurFrame + 1}/${_gifFrames.length}`;
+    _gifCurFrame = (_gifCurFrame + 1) % _gifFrames.length;
+    _gifPlayTimer = setTimeout(_playGifFrame, frame.delay);
+  }
+
+  function _stopGifPlayback() {
+    if (_gifPlayTimer) { clearTimeout(_gifPlayTimer); _gifPlayTimer = null; }
+  }
+
+  // ── Convert to 128×64 B&W (static) or reconvert GIF frames ────
+  window.convertImage = function() {
+    _threshold = parseInt(document.getElementById('thresholdSlider').value);
+    if (_isGif && _gifFrames.length > 0) {
+      // Reconvert all frames with new settings (need raw frames — reload)
+      // For simplicity re-trigger full GIF load from file
+      if (_srcFile) _loadGif(_srcFile);
+      return;
+    }
+    if (!_srcImage) return;
+
+    const tmp = document.createElement('canvas');
+    tmp.width = W; tmp.height = H;
+    const ctx = tmp.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     const iw = _srcImage.width, ih = _srcImage.height;
     let dx = 0, dy = 0, dw = W, dh = H;
     if (_scale === 'fit') {
-      const r = Math.min(W / iw, H / ih);
-      dw = Math.round(iw * r); dh = Math.round(ih * r);
-      dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
+      const r = Math.min(W/iw, H/ih);
+      dw = Math.round(iw*r); dh = Math.round(ih*r);
+      dx = Math.round((W-dw)/2); dy = Math.round((H-dh)/2);
     } else if (_scale === 'fill') {
-      const r = Math.max(W / iw, H / ih);
-      dw = Math.round(iw * r); dh = Math.round(ih * r);
-      dx = Math.round((W - dw) / 2); dy = Math.round((H - dh) / 2);
+      const r = Math.max(W/iw, H/ih);
+      dw = Math.round(iw*r); dh = Math.round(ih*r);
+      dx = Math.round((W-dw)/2); dy = Math.round((H-dh)/2);
     }
     ctx.drawImage(_srcImage, dx, dy, dw, dh);
-
-    // Step 2 — grayscale
-    const imgData = ctx.getImageData(0, 0, W, H);
-    const d = imgData.data;
-    const gray = new Float32Array(W * H);
-    for (let i = 0; i < W * H; i++) {
-      gray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
-    }
-
-    // Step 3 — dither / threshold
-    const bw = new Uint8Array(W * H); // 0=black, 255=white
-
-    if (_dither === 'floyd') {
-      const err = gray.slice();
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const idx = y * W + x;
-          const old = err[idx];
-          const nw  = old < _threshold ? 0 : 255;
-          bw[idx] = nw;
-          const e = old - nw;
-          if (x + 1 < W)           err[idx + 1]     += e * 7 / 16;
-          if (x - 1 >= 0 && y + 1 < H) err[idx + W - 1] += e * 3 / 16;
-          if (y + 1 < H)           err[idx + W]     += e * 5 / 16;
-          if (x + 1 < W && y + 1 < H) err[idx + W + 1] += e * 1 / 16;
-        }
-      }
-    } else if (_dither === 'ordered') {
-      const bayer = [[ 0,128, 32,160],[ 96, 32,224,160],[24,152, 56,184],[120, 48,216,144]];
-      for (let i = 0; i < W * H; i++) {
-        const x = i % W, y = Math.floor(i / W);
-        bw[i] = gray[i] + bayer[y % 4][x % 4] - 128 < _threshold ? 0 : 255;
-      }
-    } else {
-      for (let i = 0; i < W * H; i++) {
-        bw[i] = gray[i] < _threshold ? 0 : 255;
-      }
-    }
-
-    // Step 4 — write to output canvas
+    const packed = _canvasToPacked(tmp);
     const bwCanvas = document.getElementById('imgBwCanvas');
-    bwCanvas.width = W; bwCanvas.height = H;
-    const out = bwCanvas.getContext('2d').createImageData(W, H);
-    for (let i = 0; i < W * H; i++) {
-      const v = _invert ? 255 - bw[i] : bw[i];
-      out.data[i*4]   = v;
-      out.data[i*4+1] = v;
-      out.data[i*4+2] = v;
-      out.data[i*4+3] = 255;
-    }
-    bwCanvas.getContext('2d').putImageData(out, 0, 0);
-
-    window._imgBwCanvas = bwCanvas; // expose for send/save
+    _packedToCanvas(packed, bwCanvas);
+    window._imgBwCanvas = bwCanvas;
   };
 
   // ── Controls ──────────────────────────────────────────────────
@@ -3279,13 +3495,19 @@ draw();
   };
 
   window.resetImageConverter = function() {
-    _srcImage = null; _srcFile = null;
+    _stopGifPlayback();
+    _srcImage = null; _srcFile = null; _isGif = false; _gifFrames = [];
     _dither = 'none'; _scale = 'fit'; _threshold = 128; _invert = false;
+    window._gifFrames = null;
     document.getElementById('imgPreviewSection').style.display = 'none';
     document.getElementById('imgDropzone').style.display = '';
     document.getElementById('imgFileInput').value = '';
     document.getElementById('thresholdSlider').value = 128;
     document.getElementById('thresholdVal').textContent = '128';
+    document.getElementById('imgGifInfo').style.display = 'none';
+    document.getElementById('imgGifIndicator').style.display = 'none';
+    document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
+    document.getElementById('imgBwMeta').textContent = '128 × 64 px';
     document.querySelectorAll('.img-toggle').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-val="none"]').classList.add('active');
     document.querySelector('[data-val="fit"]').classList.add('active');
@@ -3294,46 +3516,83 @@ draw();
 
   // ── Send to ESP ───────────────────────────────────────────────
   window.sendImageToESP = function() {
-    const c = window._imgBwCanvas;
-    if (!c) { showToast('Сначала загрузите изображение', 'err'); return; }
     if (window.currentUser && !window.isController) { showToast('Нет управления', 'err'); return; }
 
-    // Convert to strokes — send each white pixel as a "filled" draw command
-    // Actually encode as raw bitmap and POST to ESP /image endpoint
-    const ctx = c.getContext('2d');
-    const px  = ctx.getImageData(0, 0, 128, 64).data;
-
-    // Build byte array: 128×64 bits packed into 1024 bytes (row-major)
-    const bytes = new Uint8Array(128 * 64 / 8);
-    for (let i = 0; i < 128 * 64; i++) {
-      if (px[i * 4] > 127) bytes[i >> 3] |= (1 << (7 - (i & 7)));
+    if (_isGif && window._gifFrames && window._gifFrames.length > 0) {
+      _sendGifToESP();
+    } else {
+      _sendBitmapToESP();
     }
+  };
 
-    // Передаём как latin1-строку: ESP читает body через server.arg("plain")
-    // Каждый байт bitmap кодируется как символ с кодом 0-255
-    let bodyStr = '';
-    for (let i = 0; i < bytes.length; i++) bodyStr += String.fromCharCode(bytes[i]);
-
+  function _sendBitmapToESP() {
+    const c = window._imgBwCanvas;
+    if (!c) { showToast('Сначала загрузите изображение', 'err'); return; }
+    const px = c.getContext('2d').getImageData(0, 0, 128, 64).data;
+    const bytes = new Uint8Array(1024);
+    for (let i = 0; i < 128*64; i++)
+      if (px[i*4] > 127) bytes[i >> 3] |= (1 << (7 - (i & 7)));
+    let body = '';
+    for (let i = 0; i < bytes.length; i++) body += String.fromCharCode(bytes[i]);
     fetch(ESP_IP + '/bitmap', {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain; charset=latin1' },
-      body: bodyStr
-    }).then(r => {
-      showToast(r.ok ? 'Отправлено на ESP' : 'Ошибка ESP', r.ok ? 'ok' : 'err');
-    }).catch(() => showToast('ESP недоступен', 'err'));
-  };
+      body
+    }).then(r => showToast(r.ok ? 'Отправлено на ESP' : 'Ошибка ESP', r.ok ? 'ok' : 'err'))
+      .catch(() => showToast('ESP недоступен', 'err'));
+  }
 
-  // ── Save as image preset (dataUrl → Firestore image_presets) ──
+  function _sendGifToESP() {
+    const frames = window._gifFrames;
+    // Protocol: POST /animation
+    // Body (latin1 string):
+    //   2 bytes: frame count (uint16 big-endian)
+    //   per frame: 2 bytes delay ms (uint16 BE) + 1024 bytes packed bitmap
+    const frameCount = frames.length;
+    const totalBytes = 2 + frameCount * (2 + 1024);
+    const buf = new Uint8Array(totalBytes);
+    let pos = 0;
+    buf[pos++] = (frameCount >> 8) & 0xFF;
+    buf[pos++] = frameCount & 0xFF;
+    for (const f of frames) {
+      const delay = Math.min(f.delay, 65535);
+      buf[pos++] = (delay >> 8) & 0xFF;
+      buf[pos++] = delay & 0xFF;
+      buf.set(f.packed, pos); pos += 1024;
+    }
+    let body = '';
+    for (let i = 0; i < buf.length; i++) body += String.fromCharCode(buf[i]);
+    fetch(ESP_IP + '/animation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=latin1' },
+      body
+    }).then(r => showToast(r.ok ? `GIF ${frameCount} кадров отправлен` : 'Ошибка ESP', r.ok ? 'ok' : 'err'))
+      .catch(() => showToast('ESP недоступен', 'err'));
+  }
+
+  // ── Save as image preset ─────────────────────────────────────
   window.saveImageAsPreset = async function() {
-    const c = window._imgBwCanvas;
-    if (!c) { showToast('Сначала загрузите изображение', 'err'); return; }
     if (!window.fsAddImagePreset) { showToast('Firebase не готов', 'err'); return; }
     requireAuth(async () => {
-      const name = (_srcFile ? _srcFile.name.replace(/\.[^.]+$/, '') : 'Image').toUpperCase().slice(0, 20);
-      const dataUrl = c.toDataURL('image/png');
+      const rawName = (_srcFile ? _srcFile.name.replace(/\.[^.]+$/, '') : 'Image');
+      const name = rawName.toUpperCase().slice(0, 20);
       try {
-        await window.fsAddImagePreset(name, dataUrl);
-        showToast(`«${name}» сохранено`, 'ok');
+        if (_isGif && window._gifFrames && window._gifFrames.length > 0) {
+          // Save GIF: array of {dataUrl, delay}
+          const gifData = window._gifFrames.map(f => {
+            const c = document.createElement('canvas');
+            _packedToCanvas(f.packed, c);
+            return { dataUrl: c.toDataURL('image/png'), delay: f.delay };
+          });
+          await window.fsAddImagePreset(name, null, gifData);
+          showToast(`«${name}» GIF сохранён`, 'ok');
+        } else {
+          const c = window._imgBwCanvas;
+          if (!c) { showToast('Сначала загрузите изображение', 'err'); return; }
+          const dataUrl = c.toDataURL('image/png');
+          await window.fsAddImagePreset(name, dataUrl, null);
+          showToast(`«${name}» сохранено`, 'ok');
+        }
       } catch(e) { showToast('Ошибка сохранения', 'err'); }
     });
   };
