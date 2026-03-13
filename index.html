@@ -694,24 +694,25 @@
   .ba-tile {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 10px; padding: 9px 10px 8px;
-    cursor: default; transition: border-color .15s, background .15s;
+    cursor: pointer; transition: border-color .15s, background .15s;
     position: relative; overflow: hidden;
   }
-  .ba-tile:hover { border-color: rgba(0,255,179,0.2); }
+  .ba-tile:hover { border-color: rgba(0,255,179,0.25); }
+  .ba-tile.has-preset { border-color: rgba(0,255,179,0.15); }
 
   /* Triggered flash */
   @keyframes ba-flash {
-    0%   { border-color: rgba(0,255,179,.8); background: rgba(0,255,179,.07); }
-    100% { border-color: var(--border);      background: var(--surface2); }
+    0%   { border-color: rgba(0,255,179,.8); background: rgba(0,255,179,.08); }
+    100% { border-color: rgba(0,255,179,0.15); background: var(--surface2); }
   }
   .ba-tile.triggered { animation: ba-flash 0.7s ease forwards; }
 
-  /* Active dot (top-right corner) */
+  /* Active dot */
   .ba-tile-dot {
     position: absolute; top: 7px; right: 8px;
     width: 5px; height: 5px; border-radius: 50%;
     background: var(--accent); opacity: 0; transition: opacity .25s;
-    pointer-events: none;
+    pointer-events: none; z-index: 3;
   }
   .ba-tile-dot.flash { opacity: 1; }
 
@@ -723,19 +724,45 @@
   }
   .ba-tile-label-icon { font-size: 11px; line-height: 1; }
 
-  /* Select */
-  .ba-tile-select {
-    width: 100%; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text); font-family: var(--mono); font-size: 9px;
-    padding: 5px 22px 5px 7px; cursor: pointer; outline: none;
-    appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23666' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 6px center;
-    transition: border-color .15s;
+  /* Preview area — shown when preset selected */
+  .ba-tile-preview {
+    width: 100%; aspect-ratio: 2/1; background: #000;
+    border-radius: 6px; overflow: hidden; position: relative;
+    display: none; margin-bottom: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
   }
-  .ba-tile-select:focus { border-color: rgba(0,255,179,.4); }
-  .ba-tile-select option { background: #1a1a2e; color: var(--text); }
+  .ba-tile.has-preset .ba-tile-preview { display: block; }
+  .ba-tile-preview canvas {
+    width: 100%; height: 100%;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    display: block;
+  }
+  .ba-tile-preview-name {
+    position: absolute; bottom: 3px; left: 5px;
+    font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.4);
+    pointer-events: none; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: calc(100% - 20px);
+  }
+  .ba-tile-preview-gif {
+    position: absolute; top: 3px; right: 4px;
+    font-family: var(--mono); font-size: 7px; color: var(--accent);
+    opacity: 0.7; pointer-events: none;
+  }
+
+  /* Select — hidden native, triggered by click on tile */
+  .ba-tile-select {
+    position: absolute; opacity: 0; pointer-events: none;
+    width: 1px; height: 1px; top: 0; left: 0;
+  }
+
+  /* Empty state hint */
+  .ba-tile-empty {
+    width: 100%; padding: 7px 0 2px;
+    font-family: var(--mono); font-size: 8px;
+    color: rgba(255,255,255,0.15); text-align: center;
+    letter-spacing: 0.06em;
+  }
+  .ba-tile.has-preset .ba-tile-empty { display: none; }
 
   /* Center divider */
   .ba-center-divider {
@@ -949,41 +976,49 @@
     <!-- AUTO BUTTON ACTIONS PANEL -->
     <div id="panelPresetAuto" class="presets-section" style="display:none;">
       <div class="btn-actions-title">ФУНКЦИИ ПРИ НАЖАТИИ</div>
+
+      <!-- 3-col grid: left | divider | right -->
       <div class="ba-grid">
 
-        <!-- LEFT COLUMN -->
+        <!-- LEFT -->
         <div class="ba-col-left">
           <div class="ba-col-header">◀ ЛЕВАЯ КНОПКА</div>
-          <div class="ba-tile" id="baRow_left_single">
-            <div class="ba-tile-dot" id="baDot_left_single"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">·</span>одиночное
+          <div class="ba-tile" id="baRow_left_single" onclick="openBaTileSelect('left_single')">
+              <div class="ba-tile-dot" id="baDot_left_single"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">·</span>одиночное</div>
+              <div class="ba-tile-preview" id="baPreview_left_single">
+                <canvas id="baCanvas_left_single" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_left_single" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_left_single"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_left_single" onchange="onBaTileSelectChange('left_single')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_left_single" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
-          <div class="ba-tile" id="baRow_left_double">
-            <div class="ba-tile-dot" id="baDot_left_double"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">··</span>двойное
+          <div class="ba-tile" id="baRow_left_double" onclick="openBaTileSelect('left_double')">
+              <div class="ba-tile-dot" id="baDot_left_double"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">··</span>двойное</div>
+              <div class="ba-tile-preview" id="baPreview_left_double">
+                <canvas id="baCanvas_left_double" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_left_double" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_left_double"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_left_double" onchange="onBaTileSelectChange('left_double')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_left_double" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
-          <div class="ba-tile" id="baRow_left_hold">
-            <div class="ba-tile-dot" id="baDot_left_hold"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">⏸</span>удержание
+          <div class="ba-tile" id="baRow_left_hold" onclick="openBaTileSelect('left_hold')">
+              <div class="ba-tile-dot" id="baDot_left_hold"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
+              <div class="ba-tile-preview" id="baPreview_left_hold">
+                <canvas id="baCanvas_left_hold" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_left_hold" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_left_hold"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_left_hold" onchange="onBaTileSelectChange('left_hold')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_left_hold" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
         </div>
 
-        <!-- CENTER DIVIDER + BOTH -->
+        <!-- DIVIDER -->
         <div class="ba-center-divider">
           <div class="ba-center-divider-dot"></div>
           <div class="ba-center-divider-line"></div>
@@ -991,59 +1026,66 @@
           <div class="ba-center-divider-line"></div>
           <div class="ba-center-divider-dot"></div>
         </div>
-        <div style="display:none"></div><!-- grid placeholder -->
 
-        <!-- BOTH COLUMN (spans center) -->
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT -->
         <div class="ba-col-right">
           <div class="ba-col-header">ПРАВАЯ КНОПКА ▶</div>
-          <div class="ba-tile" id="baRow_right_single">
-            <div class="ba-tile-dot" id="baDot_right_single"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">·</span>одиночное
+          <div class="ba-tile" id="baRow_right_single" onclick="openBaTileSelect('right_single')">
+              <div class="ba-tile-dot" id="baDot_right_single"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">·</span>одиночное</div>
+              <div class="ba-tile-preview" id="baPreview_right_single">
+                <canvas id="baCanvas_right_single" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_right_single" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_right_single"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_right_single" onchange="onBaTileSelectChange('right_single')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_right_single" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
-          <div class="ba-tile" id="baRow_right_double">
-            <div class="ba-tile-dot" id="baDot_right_double"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">··</span>двойное
+          <div class="ba-tile" id="baRow_right_double" onclick="openBaTileSelect('right_double')">
+              <div class="ba-tile-dot" id="baDot_right_double"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">··</span>двойное</div>
+              <div class="ba-tile-preview" id="baPreview_right_double">
+                <canvas id="baCanvas_right_double" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_right_double" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_right_double"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_right_double" onchange="onBaTileSelectChange('right_double')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_right_double" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
-          <div class="ba-tile" id="baRow_right_hold">
-            <div class="ba-tile-dot" id="baDot_right_hold"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">⏸</span>удержание
+          <div class="ba-tile" id="baRow_right_hold" onclick="openBaTileSelect('right_hold')">
+              <div class="ba-tile-dot" id="baDot_right_hold"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
+              <div class="ba-tile-preview" id="baPreview_right_hold">
+                <canvas id="baCanvas_right_hold" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_right_hold" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_right_hold"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_right_hold" onchange="onBaTileSelectChange('right_hold')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_right_hold" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
         </div>
 
       </div>
 
-      <!-- BOTH ROW — full width below -->
+      <!-- BOTH — full width -->
       <div style="margin-top:8px;">
         <div class="ba-col-header" style="text-align:center;margin-bottom:6px;">◀ · ▶ &nbsp;ОБЕ КНОПКИ</div>
-        <div class="ba-tile" id="baRow_both_hold">
-            <div class="ba-tile-dot" id="baDot_both_hold"></div>
-            <div class="ba-tile-label">
-              <span class="ba-tile-label-icon">⏹</span>удержание 3с
+        <div class="ba-tile" id="baRow_both_hold" onclick="openBaTileSelect('both_hold')">
+              <div class="ba-tile-dot" id="baDot_both_hold"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏹</span>удержание 3с</div>
+              <div class="ba-tile-preview" id="baPreview_both_hold">
+                <canvas id="baCanvas_both_hold" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_both_hold" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_both_hold"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_both_hold" onchange="onBaTileSelectChange('both_hold')"><option value="">—</option></select>
             </div>
-            <select class="ba-tile-select" id="baSelect_both_hold" onchange="saveBtnMapping()">
-              <option value="">—</option>
-            </select>
-          </div>
       </div>
+
     </div>
 
-    <!-- MANUAL EYE STYLE PANEL -->
+        <!-- MANUAL EYE STYLE PANEL -->
     <div id="panelPresetManual" class="presets-section" style="display:none;">
       <div class="presets-section-header"><span class="presets-section-title">СТИЛЬ ГЛАЗ</span></div>
       <div class="mode-grid">
@@ -3450,10 +3492,8 @@ function init() {
 // BUTTON ACTIONS MODULE
 // ================================================================
 (function() {
-  // ── Константы ─────────────────────────────────────────────────
-  const HOLD_MS       = 3000;  // порог удержания
-  const DOUBLE_MS     = 350;   // окно двойного нажатия
-  const DEBOUNCE_MS   = 40;    // антидребезг
+  const HOLD_MS   = 3000;
+  const DOUBLE_MS = 350;
 
   const EVENT_KEYS = [
     'left_single', 'right_single',
@@ -3462,24 +3502,76 @@ function init() {
     'both_hold'
   ];
 
-  // ── Состояние детектора ────────────────────────────────────────
-  let _lastLeft  = false, _lastRight = false;
-  let _leftDownAt  = 0,   _rightDownAt  = 0;
-  let _bothDownAt  = 0;
-  let _leftTaps    = 0,   _rightTaps    = 0;
-  let _leftTapTimer  = null, _rightTapTimer = null;
-  let _leftHoldFired  = false, _rightHoldFired = false, _bothHoldFired = false;
+  let _lastLeft = false, _lastRight = false;
+  let _leftDownAt = 0, _rightDownAt = 0, _bothDownAt = 0;
+  let _leftTaps = 0, _rightTaps = 0;
+  let _leftTapTimer = null, _rightTapTimer = null;
+  let _leftHoldFired = false, _rightHoldFired = false, _bothHoldFired = false;
+  let _mapping = {};
 
-  // ── Маппинг: eventKey → presetId ──────────────────────────────
-  let _mapping = {};   // { left_single: 'presetId', ... }
+  // ── Per-tile animation timers ─────────────────────────────────
+  // { key: { timer, frameIdx, frames: [{dataUrl,delay}] } }
+  const _tileAnims = {};
 
-  // ── Populate selects with current image presets ───────────────
-  function rebuildSelects(presets) {
+  function _stopTileAnim(key) {
+    if (_tileAnims[key]) { clearTimeout(_tileAnims[key].timer); delete _tileAnims[key]; }
+  }
+
+  function _startTileAnim(key, preset) {
+    _stopTileAnim(key);
+    const canvas = document.getElementById('baCanvas_' + key);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (preset.isGif && preset.gifData && preset.gifData.length > 0) {
+      // Animate GIF frames
+      const frames = preset.gifData;
+      let fi = 0;
+      const step = () => {
+        const f = frames[fi];
+        const img = new Image();
+        img.onload = () => { ctx.clearRect(0,0,128,64); ctx.drawImage(img,0,0,128,64); };
+        img.src = f.dataUrl;
+        fi = (fi + 1) % frames.length;
+        _tileAnims[key] = { timer: setTimeout(step, f.delay || 100), fi };
+      };
+      _tileAnims[key] = { timer: setTimeout(step, 0), fi: 0 };
+    } else if (preset.dataUrl) {
+      // Static image — draw once
+      const img = new Image();
+      img.onload = () => { ctx.clearRect(0,0,128,64); ctx.drawImage(img,0,0,128,64); };
+      img.src = preset.dataUrl;
+    }
+  }
+
+  function _applyTilePreset(key, preset) {
+    const tile = document.getElementById('baRow_' + key);
+    const gifBadge = document.getElementById('baGifBadge_' + key);
+    const nameEl  = document.getElementById('baPreviewName_' + key);
+    const sel     = document.getElementById('baSelect_' + key);
+    if (!tile) return;
+    if (preset) {
+      tile.classList.add('has-preset');
+      if (gifBadge) gifBadge.style.display = preset.isGif ? 'block' : 'none';
+      if (nameEl)   nameEl.textContent = preset.name || 'IMAGE';
+      if (sel)      sel.value = preset.id;
+      _startTileAnim(key, preset);
+    } else {
+      tile.classList.remove('has-preset');
+      if (gifBadge) gifBadge.style.display = 'none';
+      if (nameEl)   nameEl.textContent = '';
+      if (sel)      sel.value = '';
+      _stopTileAnim(key);
+      const canvas = document.getElementById('baCanvas_' + key);
+      if (canvas) canvas.getContext('2d').clearRect(0,0,128,64);
+    }
+  }
+
+  // ── Rebuild selects + restore previews when presets change ────
+  function _rebuildAndRestore(presets) {
     EVENT_KEYS.forEach(key => {
       const sel = document.getElementById('baSelect_' + key);
       if (!sel) return;
-      const cur = sel.value;
-      // Clear all options except the first (empty)
       while (sel.options.length > 1) sel.remove(1);
       presets.forEach(p => {
         const opt = document.createElement('option');
@@ -3487,63 +3579,70 @@ function init() {
         opt.textContent = (p.isGif ? '▶ ' : '□ ') + (p.name || 'IMAGE');
         sel.appendChild(opt);
       });
-      // Restore saved value
-      const saved = _mapping[key] || '';
-      sel.value = saved;
-      if (sel.value !== saved) sel.value = ''; // preset deleted
+      // Restore saved mapping
+      const pid = _mapping[key] || '';
+      sel.value = pid;
+      const preset = pid ? presets.find(p => p.id === pid) : null;
+      _applyTilePreset(key, preset || null);
     });
   }
 
-  // ── Save mapping to Firestore ──────────────────────────────────
-  window.saveBtnMapping = function() {
-    const m = {};
-    EVENT_KEYS.forEach(key => {
-      const sel = document.getElementById('baSelect_' + key);
-      if (sel && sel.value) m[key] = sel.value;
-    });
-    _mapping = m;
+  // ── Public: tile click → open native select ───────────────────
+  window.openBaTileSelect = function(key) {
+    const sel = document.getElementById('baSelect_' + key);
+    if (!sel) return;
+    // Make temporarily visible to native picker
+    sel.style.cssText = 'position:absolute;opacity:0;pointer-events:auto;width:1px;height:1px;top:0;left:0;';
+    sel.focus();
+    sel.click();
+    setTimeout(() => {
+      sel.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;';
+    }, 300);
+  };
+
+  // ── Public: called when native select changes ─────────────────
+  window.onBaTileSelectChange = function(key) {
+    const sel = document.getElementById('baSelect_' + key);
+    if (!sel) return;
+    const pid = sel.value;
+    const preset = pid ? cloudImagePresets.find(p => p.id === pid) : null;
+    _applyTilePreset(key, preset || null);
+    // Persist
+    if (pid) _mapping[key] = pid; else delete _mapping[key];
     if (window.fsSaveBtnMapping) {
-      requireAuth(() => window.fsSaveBtnMapping(m).catch(() => showToast('Ошибка сохранения маппинга', 'err')));
+      requireAuth(() => window.fsSaveBtnMapping({..._mapping}).catch(() => showToast('Ошибка сохранения', 'err')));
     }
   };
+
+  // ── Keep saveBtnMapping as no-op alias (called nowhere now) ───
+  window.saveBtnMapping = function() {};
 
   // ── Load mapping from Firestore (realtime) ────────────────────
   window.onBtnMappingLoaded = function(mapping) {
     _mapping = mapping || {};
-    EVENT_KEYS.forEach(key => {
-      const sel = document.getElementById('baSelect_' + key);
-      if (sel) { sel.value = _mapping[key] || ''; }
-    });
+    _rebuildAndRestore(cloudImagePresets);
   };
 
-  // ── When image presets update — rebuild selects ───────────────
+  // ── When image presets update ─────────────────────────────────
   const _origOnImagePresetsLoaded = window.onImagePresetsLoaded;
   window.onImagePresetsLoaded = function(presets) {
     if (_origOnImagePresetsLoaded) _origOnImagePresetsLoaded(presets);
-    rebuildSelects(presets);
+    _rebuildAndRestore(presets);
   };
 
   // ── Fire action ───────────────────────────────────────────────
   function _fireEvent(key) {
     const presetId = _mapping[key];
     if (!presetId) return;
-
-    // Flash tile
     const row = document.getElementById('baRow_' + key);
     const dot = document.getElementById('baDot_' + key);
     if (row) { row.classList.remove('triggered'); void row.offsetWidth; row.classList.add('triggered'); }
     if (dot) { dot.classList.add('flash'); setTimeout(() => dot.classList.remove('flash'), 700); }
-
-    // Find preset and send to ESP
     const preset = cloudImagePresets.find(p => p.id === presetId);
     if (!preset) return;
-    if (window.currentUser && !window.isController) return; // read-only mode
-
-    if (preset.isGif && preset.gifData) {
-      _sendGifPresetToESP(preset);
-    } else if (preset.dataUrl) {
-      _sendBitmapPresetToESP(preset);
-    }
+    if (window.currentUser && !window.isController) return;
+    if (preset.isGif && preset.gifData) _sendGifPresetToESP(preset);
+    else if (preset.dataUrl) _sendBitmapPresetToESP(preset);
   }
 
   function _sendBitmapPresetToESP(preset) {
@@ -3557,8 +3656,7 @@ function init() {
         if (px[i*4] > 127) bytes[i>>3] |= (1 << (7-(i&7)));
       let body = '';
       for (let i = 0; i < 1024; i++) body += String.fromCharCode(bytes[i]);
-      fetch(ESP_IP + '/bitmap', { method:'POST', headers:{'Content-Type':'text/plain; charset=latin1'}, body })
-        .catch(() => {});
+      fetch(ESP_IP + '/bitmap', { method:'POST', headers:{'Content-Type':'text/plain; charset=latin1'}, body }).catch(()=>{});
     };
     img.src = preset.dataUrl;
   }
@@ -3566,9 +3664,7 @@ function init() {
   function _sendGifPresetToESP(preset) {
     const frames = preset.gifData;
     const buf = new Uint8Array(2 + frames.length * 1026);
-    buf[0] = (frames.length >> 8) & 0xFF;
-    buf[1] = frames.length & 0xFF;
-    let pos = 2;
+    buf[0] = (frames.length >> 8) & 0xFF; buf[1] = frames.length & 0xFF;
     let loaded = 0;
     frames.forEach((f, fi) => {
       const img = new Image();
@@ -3578,16 +3674,13 @@ function init() {
         const px = c.getContext('2d').getImageData(0,0,128,64).data;
         const fpos = 2 + fi * 1026;
         const delay = Math.min(f.delay || 100, 65535);
-        buf[fpos]   = (delay >> 8) & 0xFF;
-        buf[fpos+1] = delay & 0xFF;
+        buf[fpos] = (delay >> 8) & 0xFF; buf[fpos+1] = delay & 0xFF;
         for (let i = 0; i < 128*64; i++)
           if (px[i*4] > 127) buf[fpos + 2 + (i>>3)] |= (1 << (7-(i&7)));
-        loaded++;
-        if (loaded === frames.length) {
+        if (++loaded === frames.length) {
           let body = '';
           for (let i = 0; i < buf.length; i++) body += String.fromCharCode(buf[i]);
-          fetch(ESP_IP + '/animation', { method:'POST', headers:{'Content-Type':'text/plain; charset=latin1'}, body })
-            .catch(() => {});
+          fetch(ESP_IP + '/animation', { method:'POST', headers:{'Content-Type':'text/plain; charset=latin1'}, body }).catch(()=>{});
         }
       };
       img.src = f.dataUrl;
