@@ -764,6 +764,69 @@
   }
   .ba-tile.has-preset .ba-tile-empty { display: none; }
 
+  /* ── Preset Picker bottom-sheet ── */
+  #baPicker {
+    position: fixed; inset: 0; z-index: 9000;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    background: rgba(0,0,0,0); pointer-events: none;
+    transition: background .25s;
+  }
+  #baPicker.open { background: rgba(0,0,0,0.6); pointer-events: all; }
+  #baPickerSheet {
+    background: var(--surface); border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0; padding: 0 0 env(safe-area-inset-bottom,0);
+    transform: translateY(100%); transition: transform .28s cubic-bezier(.32,1,.6,1);
+    max-height: 70vh; display: flex; flex-direction: column;
+  }
+  #baPicker.open #baPickerSheet { transform: translateY(0); }
+  #baPickerHeader {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  #baPickerTitle {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--text-muted);
+  }
+  #baPickerClose {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 2px 6px;
+  }
+  #baPickerList {
+    overflow-y: auto; padding: 10px 12px 16px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .ba-picker-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; cursor: pointer;
+    transition: border-color .15s;
+  }
+  .ba-picker-item:hover, .ba-picker-item.selected { border-color: rgba(0,255,179,0.5); }
+  .ba-picker-item.selected { background: rgba(0,255,179,0.06); }
+  .ba-picker-item-preview {
+    width: 100%; aspect-ratio: 2/1; background: #000; position: relative;
+  }
+  .ba-picker-item-preview canvas {
+    width: 100%; height: 100%;
+    image-rendering: pixelated; image-rendering: crisp-edges; display: block;
+  }
+  .ba-picker-item-gif {
+    position: absolute; top: 2px; right: 3px;
+    font-family: var(--mono); font-size: 6px; color: var(--accent); opacity: 0.8;
+  }
+  .ba-picker-item-name {
+    font-family: var(--mono); font-size: 8px; color: var(--text-muted);
+    padding: 4px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: center;
+  }
+  /* Unassign row */
+  .ba-picker-unassign {
+    grid-column: 1 / -1;
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px; text-align: center; cursor: pointer;
+    font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+    transition: color .15s, border-color .15s;
+  }
+  .ba-picker-unassign:hover { color: var(--red); border-color: rgba(255,77,109,0.4); }
+
   /* Center divider */
   .ba-center-divider {
     display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -3587,34 +3650,113 @@ function init() {
     });
   }
 
-  // ── Public: tile click → open native select ───────────────────
+  // ── Picker state ─────────────────────────────────────────────
+  let _pickerKey = null;
+  const _pickerAnims = {}; // id → timer
+
+  function _stopPickerAnims() {
+    Object.values(_pickerAnims).forEach(t => clearTimeout(t));
+    for (const k in _pickerAnims) delete _pickerAnims[k];
+  }
+
+  function _animPickerItem(id, preset, canvas) {
+    if (!preset.isGif || !preset.gifData) {
+      // static
+      const img = new Image();
+      img.onload = () => { canvas.getContext('2d').drawImage(img, 0, 0, 128, 64); };
+      img.src = preset.dataUrl;
+      return;
+    }
+    const frames = preset.gifData;
+    let fi = 0;
+    const step = () => {
+      const f = frames[fi];
+      const img = new Image();
+      img.onload = () => { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,128,64); ctx.drawImage(img,0,0,128,64); };
+      img.src = f.dataUrl;
+      fi = (fi + 1) % frames.length;
+      _pickerAnims[id] = setTimeout(step, f.delay || 100);
+    };
+    _pickerAnims[id] = setTimeout(step, 0);
+  }
+
   window.openBaTileSelect = function(key) {
-    const sel = document.getElementById('baSelect_' + key);
-    if (!sel) return;
-    // Make temporarily visible to native picker
-    sel.style.cssText = 'position:absolute;opacity:0;pointer-events:auto;width:1px;height:1px;top:0;left:0;';
-    sel.focus();
-    sel.click();
-    setTimeout(() => {
-      sel.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;';
-    }, 300);
+    _pickerKey = key;
+    const list = document.getElementById('baPickerList');
+    if (!list) return;
+    _stopPickerAnims();
+    list.innerHTML = '';
+
+    // Unassign button (only if currently assigned)
+    if (_mapping[key]) {
+      const ua = document.createElement('div');
+      ua.className = 'ba-picker-unassign';
+      ua.textContent = '✕ убрать назначение';
+      ua.onclick = () => { _pickPreset(key, null); closeBaPicker(); };
+      list.appendChild(ua);
+    }
+
+    if (cloudImagePresets.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:24px;font-family:var(--mono);font-size:10px;color:var(--text-dim);';
+      empty.textContent = 'Нет сохранённых анимаций';
+      list.appendChild(empty);
+    }
+
+    cloudImagePresets.forEach(preset => {
+      const item = document.createElement('div');
+      item.className = 'ba-picker-item' + (_mapping[key] === preset.id ? ' selected' : '');
+      item.onclick = () => { _pickPreset(key, preset); closeBaPicker(); };
+
+      const preview = document.createElement('div');
+      preview.className = 'ba-picker-item-preview';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 64;
+      preview.appendChild(canvas);
+
+      if (preset.isGif) {
+        const gif = document.createElement('div');
+        gif.className = 'ba-picker-item-gif';
+        gif.textContent = 'GIF';
+        preview.appendChild(gif);
+      }
+
+      const name = document.createElement('div');
+      name.className = 'ba-picker-item-name';
+      name.textContent = preset.name || 'IMAGE';
+
+      item.appendChild(preview);
+      item.appendChild(name);
+      list.appendChild(item);
+
+      _animPickerItem(preset.id, preset, canvas);
+    });
+
+    // Open sheet
+    const picker = document.getElementById('baPicker');
+    picker.classList.add('open');
+    // Close on backdrop click
+    picker.onclick = (e) => { if (e.target === picker) closeBaPicker(); };
   };
 
-  // ── Public: called when native select changes ─────────────────
-  window.onBaTileSelectChange = function(key) {
-    const sel = document.getElementById('baSelect_' + key);
-    if (!sel) return;
-    const pid = sel.value;
-    const preset = pid ? cloudImagePresets.find(p => p.id === pid) : null;
-    _applyTilePreset(key, preset || null);
-    // Persist
-    if (pid) _mapping[key] = pid; else delete _mapping[key];
+  window.closeBaPicker = function() {
+    const picker = document.getElementById('baPicker');
+    if (picker) picker.classList.remove('open');
+    _stopPickerAnims();
+    _pickerKey = null;
+  };
+
+  function _pickPreset(key, preset) {
+    _applyTilePreset(key, preset);
+    if (preset) _mapping[key] = preset.id; else delete _mapping[key];
     if (window.fsSaveBtnMapping) {
       requireAuth(() => window.fsSaveBtnMapping({..._mapping}).catch(() => showToast('Ошибка сохранения', 'err')));
     }
-  };
+  }
 
-  // ── Keep saveBtnMapping as no-op alias (called nowhere now) ───
+  // ── no-op stubs kept for compat ──────────────────────────────
+  window.onBaTileSelectChange = function() {};
   window.saveBtnMapping = function() {};
 
   // ── Load mapping from Firestore (realtime) ────────────────────
@@ -4355,5 +4497,16 @@ const GifParser = (() => {
 })();
 
 </script>
+  <!-- BA Preset Picker -->
+  <div id="baPicker">
+    <div id="baPickerSheet">
+      <div id="baPickerHeader">
+        <div id="baPickerTitle">ВЫБОР АНИМАЦИИ</div>
+        <button id="baPickerClose" onclick="closeBaPicker()">✕</button>
+      </div>
+      <div id="baPickerList"></div>
+    </div>
+  </div>
+
 </body>
 </html>
