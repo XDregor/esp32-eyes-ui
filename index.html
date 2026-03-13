@@ -674,7 +674,7 @@
   .ba-grid {
     display: grid;
     grid-template-columns: 1fr 9px 1fr;
-    grid-template-rows: auto repeat(3, 1fr);
+    grid-template-rows: auto repeat(3, auto);
     gap: 6px 0;
     align-items: stretch;
   }
@@ -706,8 +706,6 @@
     cursor: pointer; transition: border-color .15s, background .15s;
     position: relative; overflow: hidden;
     display: flex; flex-direction: column;
-    /* растягиваем на всю высоту строки грида */
-    height: 100%;
     box-sizing: border-box;
   }
   .ba-tile:hover { border-color: rgba(0,255,179,0.25); }
@@ -735,7 +733,7 @@
   .ba-tile-label-icon { font-size: 10px; line-height: 1; }
 
   .ba-tile-preview {
-    width: 100%; height: 40px; /* фиксировано — не растягивает тайл */
+    width: 100%; aspect-ratio: 2 / 1;
     background: #000; border-radius: 5px; overflow: hidden; position: relative;
     display: none; flex-shrink: 0;
     border: 1px solid rgba(255,255,255,0.06);
@@ -810,12 +808,11 @@
     overflow-y: auto; -webkit-overflow-scrolling: touch;
     padding: 10px 12px 12px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
   }
-  /* На узких экранах 2 колонки */
-  @media (max-width: 360px) {
-    #baPickerList { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 400px) {
+    #baPickerList { grid-template-columns: repeat(3, 1fr); }
   }
   .ba-picker-item {
     background: var(--surface2); border: 1px solid var(--border);
