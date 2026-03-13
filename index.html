@@ -670,135 +670,160 @@
   .btn-actions-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
   /* 3-column grid: left | both | right */
+  /* Единый flat grid — все тайлы в одном контейнере, строки синхронизированы */
   .ba-grid {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 6px;
-    align-items: start;
+    grid-template-columns: 1fr 9px 1fr;
+    grid-template-rows: auto repeat(3, 1fr);
+    gap: 6px 0;
+    align-items: stretch;
   }
-  .ba-col-left  { display: flex; flex-direction: column; gap: 6px; }
-  .ba-col-both  { display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; }
-  .ba-col-right { display: flex; flex-direction: column; gap: 6px; }
+  .ba-col-left, .ba-col-right, .ba-col-both { display: contents; }
 
-  /* Column headers */
+  /* Заголовки */
   .ba-col-header {
     font-family: var(--mono); font-size: 8px; letter-spacing: 0.1em;
-    color: var(--text-muted); text-align: center; padding-bottom: 2px;
-    opacity: 0.6;
+    color: var(--text-muted); opacity: 0.6; align-self: center; padding-bottom: 0;
   }
-  .ba-col-left  .ba-col-header { text-align: left; }
-  .ba-col-right .ba-col-header { text-align: right; }
+  .ba-hdr-left  { grid-column: 1; grid-row: 1; text-align: left; }
+  .ba-hdr-right { grid-column: 3; grid-row: 1; text-align: right; }
+
+  /* Тайлы — явные позиции */
+  .ba-tile-l1 { grid-column: 1; grid-row: 2; }
+  .ba-tile-l2 { grid-column: 1; grid-row: 3; }
+  .ba-tile-l3 { grid-column: 1; grid-row: 4; }
+  .ba-tile-r1 { grid-column: 3; grid-row: 2; }
+  .ba-tile-r2 { grid-column: 3; grid-row: 3; }
+  .ba-tile-r3 { grid-column: 3; grid-row: 4; }
+
+  /* Разделитель */
+  .ba-center-divider { grid-column: 2; grid-row: 1 / -1; }
 
   /* Tile */
   .ba-tile {
     background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 9px 10px 8px;
+    border-radius: 10px; padding: 8px 8px 6px;
     cursor: pointer; transition: border-color .15s, background .15s;
     position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    /* растягиваем на всю высоту строки грида */
+    height: 100%;
+    box-sizing: border-box;
   }
   .ba-tile:hover { border-color: rgba(0,255,179,0.25); }
   .ba-tile.has-preset { border-color: rgba(0,255,179,0.15); }
 
-  /* Triggered flash */
   @keyframes ba-flash {
     0%   { border-color: rgba(0,255,179,.8); background: rgba(0,255,179,.08); }
     100% { border-color: rgba(0,255,179,0.15); background: var(--surface2); }
   }
   .ba-tile.triggered { animation: ba-flash 0.7s ease forwards; }
 
-  /* Active dot */
   .ba-tile-dot {
-    position: absolute; top: 7px; right: 8px;
+    position: absolute; top: 6px; right: 7px;
     width: 5px; height: 5px; border-radius: 50%;
     background: var(--accent); opacity: 0; transition: opacity .25s;
     pointer-events: none; z-index: 3;
   }
   .ba-tile-dot.flash { opacity: 1; }
 
-  /* Event label */
   .ba-tile-label {
     font-family: var(--mono); font-size: 9px; color: var(--text-muted);
-    letter-spacing: 0.06em; margin-bottom: 6px;
-    display: flex; align-items: center; gap: 5px;
+    letter-spacing: 0.06em; margin-bottom: 5px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 4px;
   }
-  .ba-tile-label-icon { font-size: 11px; line-height: 1; }
+  .ba-tile-label-icon { font-size: 10px; line-height: 1; }
 
-  /* Preview area — shown when preset selected */
   .ba-tile-preview {
-    width: 100%; aspect-ratio: 2/1; background: #000;
-    border-radius: 6px; overflow: hidden; position: relative;
-    display: none; margin-bottom: 5px;
+    width: 100%; height: 40px; /* фиксировано — не растягивает тайл */
+    background: #000; border-radius: 5px; overflow: hidden; position: relative;
+    display: none; flex-shrink: 0;
     border: 1px solid rgba(255,255,255,0.06);
   }
   .ba-tile.has-preset .ba-tile-preview { display: block; }
   .ba-tile-preview canvas {
     width: 100%; height: 100%;
-    image-rendering: pixelated; image-rendering: crisp-edges;
-    display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges; display: block;
   }
   .ba-tile-preview-name {
-    position: absolute; bottom: 3px; left: 5px;
-    font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.4);
+    position: absolute; bottom: 2px; left: 4px;
+    font-family: var(--mono); font-size: 6px; color: rgba(255,255,255,0.35);
     pointer-events: none; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: calc(100% - 20px);
+    text-overflow: ellipsis; max-width: calc(100% - 18px);
   }
   .ba-tile-preview-gif {
-    position: absolute; top: 3px; right: 4px;
-    font-family: var(--mono); font-size: 7px; color: var(--accent);
+    position: absolute; top: 2px; right: 3px;
+    font-family: var(--mono); font-size: 6px; color: var(--accent);
     opacity: 0.7; pointer-events: none;
   }
 
-  /* Select — hidden native, triggered by click on tile */
   .ba-tile-select {
     position: absolute; opacity: 0; pointer-events: none;
     width: 1px; height: 1px; top: 0; left: 0;
   }
 
-  /* Empty state hint */
   .ba-tile-empty {
-    width: 100%; padding: 7px 0 2px;
+    flex: 1; display: flex; align-items: center; justify-content: center;
     font-family: var(--mono); font-size: 8px;
-    color: rgba(255,255,255,0.15); text-align: center;
-    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.13); letter-spacing: 0.06em;
   }
   .ba-tile.has-preset .ba-tile-empty { display: none; }
 
-  /* ── Preset Picker bottom-sheet ── */
+  /* ── Picker bottom-sheet ── */
   #baPicker {
     position: fixed; inset: 0; z-index: 9000;
     display: flex; flex-direction: column; justify-content: flex-end;
     background: rgba(0,0,0,0); pointer-events: none;
     transition: background .25s;
   }
-  #baPicker.open { background: rgba(0,0,0,0.6); pointer-events: all; }
+  #baPicker.open { background: rgba(0,0,0,0.65); pointer-events: all; }
   #baPickerSheet {
     background: var(--surface); border-top: 1px solid var(--border);
-    border-radius: 18px 18px 0 0; padding: 0 0 env(safe-area-inset-bottom,0);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
     transform: translateY(100%); transition: transform .28s cubic-bezier(.32,1,.6,1);
-    max-height: 70vh; display: flex; flex-direction: column;
+    max-height: 75vh; display: flex; flex-direction: column;
   }
   #baPicker.open #baPickerSheet { transform: translateY(0); }
+
+  /* drag handle */
+  #baPickerSheet::before {
+    content: ''; display: block; width: 36px; height: 4px;
+    background: var(--border); border-radius: 2px;
+    margin: 10px auto 0; flex-shrink: 0;
+  }
+
   #baPickerHeader {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding: 10px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
   }
   #baPickerTitle {
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--text-muted);
   }
   #baPickerClose {
-    background: none; border: none; color: var(--text-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; padding: 2px 6px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
+    color: var(--text-muted); cursor: pointer;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; flex-shrink: 0;
   }
   #baPickerList {
-    overflow-y: auto; padding: 10px 12px 16px;
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 10px 12px 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  /* На узких экранах 2 колонки */
+  @media (max-width: 360px) {
+    #baPickerList { grid-template-columns: repeat(2, 1fr); }
   }
   .ba-picker-item {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; overflow: hidden; cursor: pointer;
-    transition: border-color .15s;
+    transition: border-color .15s; -webkit-tap-highlight-color: transparent;
+    active:scale(0.97);
   }
+  .ba-picker-item:active { transform: scale(0.97); }
   .ba-picker-item:hover, .ba-picker-item.selected { border-color: rgba(0,255,179,0.5); }
   .ba-picker-item.selected { background: rgba(0,255,179,0.06); }
   .ba-picker-item-preview {
@@ -809,12 +834,13 @@
     image-rendering: pixelated; image-rendering: crisp-edges; display: block;
   }
   .ba-picker-item-gif {
-    position: absolute; top: 2px; right: 3px;
-    font-family: var(--mono); font-size: 6px; color: var(--accent); opacity: 0.8;
+    position: absolute; top: 3px; right: 3px;
+    font-family: var(--mono); font-size: 7px; color: var(--accent); opacity: 0.85;
+    background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 3px;
   }
   .ba-picker-item-name {
     font-family: var(--mono); font-size: 8px; color: var(--text-muted);
-    padding: 4px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 5px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     text-align: center;
   }
   /* Unassign row */
@@ -827,13 +853,13 @@
   }
   .ba-picker-unassign:hover { color: var(--red); border-color: rgba(255,77,109,0.4); }
 
-  /* Center divider */
   .ba-center-divider {
+    grid-column: 2; grid-row: 2 / -1; /* под заголовком, до конца */
     display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 0 4px;
+    padding: 4px 4px;
   }
   .ba-center-divider-line {
-    width: 1px; flex: 1; min-height: 12px; background: var(--border);
+    width: 1px; flex: 1; min-height: 8px; background: var(--border);
   }
   .ba-center-divider-dot {
     width: 4px; height: 4px; border-radius: 50%; background: var(--border);
@@ -1040,13 +1066,20 @@
     <div id="panelPresetAuto" class="presets-section" style="display:none;">
       <div class="btn-actions-title">ФУНКЦИИ ПРИ НАЖАТИИ</div>
 
-      <!-- 3-col grid: left | divider | right -->
       <div class="ba-grid">
+        <!-- заголовки -->
+        <div class="ba-col-header ba-hdr-left">◀ ЛЕВАЯ КНОПКА</div>
+        <div class="ba-center-divider">
+          <div class="ba-center-divider-dot"></div>
+          <div class="ba-center-divider-line"></div>
+          <div class="ba-center-divider-dot"></div>
+          <div class="ba-center-divider-line"></div>
+          <div class="ba-center-divider-dot"></div>
+        </div>
+        <div class="ba-col-header ba-hdr-right">ПРАВАЯ КНОПКА ▶</div>
 
-        <!-- LEFT -->
-        <div class="ba-col-left">
-          <div class="ba-col-header">◀ ЛЕВАЯ КНОПКА</div>
-          <div class="ba-tile" id="baRow_left_single" onclick="openBaTileSelect('left_single')">
+        <!-- попарно: левый тайл, правый тайл -->
+        <div class="ba-tile ba-tile-l1" id="baRow_left_single" onclick="openBaTileSelect('left_single')">
               <div class="ba-tile-dot" id="baDot_left_single"></div>
               <div class="ba-tile-label"><span class="ba-tile-label-icon">·</span>одиночное</div>
               <div class="ba-tile-preview" id="baPreview_left_single">
@@ -1057,43 +1090,7 @@
               <div class="ba-tile-empty">+ назначить</div>
               <select class="ba-tile-select" id="baSelect_left_single" onchange="onBaTileSelectChange('left_single')"><option value="">—</option></select>
             </div>
-          <div class="ba-tile" id="baRow_left_double" onclick="openBaTileSelect('left_double')">
-              <div class="ba-tile-dot" id="baDot_left_double"></div>
-              <div class="ba-tile-label"><span class="ba-tile-label-icon">··</span>двойное</div>
-              <div class="ba-tile-preview" id="baPreview_left_double">
-                <canvas id="baCanvas_left_double" width="128" height="64"></canvas>
-                <div class="ba-tile-preview-gif" id="baGifBadge_left_double" style="display:none">GIF</div>
-                <div class="ba-tile-preview-name" id="baPreviewName_left_double"></div>
-              </div>
-              <div class="ba-tile-empty">+ назначить</div>
-              <select class="ba-tile-select" id="baSelect_left_double" onchange="onBaTileSelectChange('left_double')"><option value="">—</option></select>
-            </div>
-          <div class="ba-tile" id="baRow_left_hold" onclick="openBaTileSelect('left_hold')">
-              <div class="ba-tile-dot" id="baDot_left_hold"></div>
-              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
-              <div class="ba-tile-preview" id="baPreview_left_hold">
-                <canvas id="baCanvas_left_hold" width="128" height="64"></canvas>
-                <div class="ba-tile-preview-gif" id="baGifBadge_left_hold" style="display:none">GIF</div>
-                <div class="ba-tile-preview-name" id="baPreviewName_left_hold"></div>
-              </div>
-              <div class="ba-tile-empty">+ назначить</div>
-              <select class="ba-tile-select" id="baSelect_left_hold" onchange="onBaTileSelectChange('left_hold')"><option value="">—</option></select>
-            </div>
-        </div>
-
-        <!-- DIVIDER -->
-        <div class="ba-center-divider">
-          <div class="ba-center-divider-dot"></div>
-          <div class="ba-center-divider-line"></div>
-          <div class="ba-center-divider-dot"></div>
-          <div class="ba-center-divider-line"></div>
-          <div class="ba-center-divider-dot"></div>
-        </div>
-
-        <!-- RIGHT -->
-        <div class="ba-col-right">
-          <div class="ba-col-header">ПРАВАЯ КНОПКА ▶</div>
-          <div class="ba-tile" id="baRow_right_single" onclick="openBaTileSelect('right_single')">
+        <div class="ba-tile ba-tile-r1" id="baRow_right_single" onclick="openBaTileSelect('right_single')">
               <div class="ba-tile-dot" id="baDot_right_single"></div>
               <div class="ba-tile-label"><span class="ba-tile-label-icon">·</span>одиночное</div>
               <div class="ba-tile-preview" id="baPreview_right_single">
@@ -1104,7 +1101,18 @@
               <div class="ba-tile-empty">+ назначить</div>
               <select class="ba-tile-select" id="baSelect_right_single" onchange="onBaTileSelectChange('right_single')"><option value="">—</option></select>
             </div>
-          <div class="ba-tile" id="baRow_right_double" onclick="openBaTileSelect('right_double')">
+        <div class="ba-tile ba-tile-l2" id="baRow_left_double" onclick="openBaTileSelect('left_double')">
+              <div class="ba-tile-dot" id="baDot_left_double"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">··</span>двойное</div>
+              <div class="ba-tile-preview" id="baPreview_left_double">
+                <canvas id="baCanvas_left_double" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_left_double" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_left_double"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_left_double" onchange="onBaTileSelectChange('left_double')"><option value="">—</option></select>
+            </div>
+        <div class="ba-tile ba-tile-r2" id="baRow_right_double" onclick="openBaTileSelect('right_double')">
               <div class="ba-tile-dot" id="baDot_right_double"></div>
               <div class="ba-tile-label"><span class="ba-tile-label-icon">··</span>двойное</div>
               <div class="ba-tile-preview" id="baPreview_right_double">
@@ -1115,7 +1123,18 @@
               <div class="ba-tile-empty">+ назначить</div>
               <select class="ba-tile-select" id="baSelect_right_double" onchange="onBaTileSelectChange('right_double')"><option value="">—</option></select>
             </div>
-          <div class="ba-tile" id="baRow_right_hold" onclick="openBaTileSelect('right_hold')">
+        <div class="ba-tile ba-tile-l3" id="baRow_left_hold" onclick="openBaTileSelect('left_hold')">
+              <div class="ba-tile-dot" id="baDot_left_hold"></div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
+              <div class="ba-tile-preview" id="baPreview_left_hold">
+                <canvas id="baCanvas_left_hold" width="128" height="64"></canvas>
+                <div class="ba-tile-preview-gif" id="baGifBadge_left_hold" style="display:none">GIF</div>
+                <div class="ba-tile-preview-name" id="baPreviewName_left_hold"></div>
+              </div>
+              <div class="ba-tile-empty">+ назначить</div>
+              <select class="ba-tile-select" id="baSelect_left_hold" onchange="onBaTileSelectChange('left_hold')"><option value="">—</option></select>
+            </div>
+        <div class="ba-tile ba-tile-r3" id="baRow_right_hold" onclick="openBaTileSelect('right_hold')">
               <div class="ba-tile-dot" id="baDot_right_hold"></div>
               <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
               <div class="ba-tile-preview" id="baPreview_right_hold">
@@ -1126,14 +1145,12 @@
               <div class="ba-tile-empty">+ назначить</div>
               <select class="ba-tile-select" id="baSelect_right_hold" onchange="onBaTileSelectChange('right_hold')"><option value="">—</option></select>
             </div>
-        </div>
-
       </div>
 
-      <!-- BOTH — full width -->
+      <!-- ОБЕ КНОПКИ -->
       <div style="margin-top:8px;">
         <div class="ba-col-header" style="text-align:center;margin-bottom:6px;">◀ · ▶ &nbsp;ОБЕ КНОПКИ</div>
-        <div class="ba-tile" id="baRow_both_hold" onclick="openBaTileSelect('both_hold')">
+        <div class="ba-tile " id="baRow_both_hold" onclick="openBaTileSelect('both_hold')">
               <div class="ba-tile-dot" id="baDot_both_hold"></div>
               <div class="ba-tile-label"><span class="ba-tile-label-icon">⏹</span>удержание 3с</div>
               <div class="ba-tile-preview" id="baPreview_both_hold">
