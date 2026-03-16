@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>ESP Eyes Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,7 +28,7 @@
     --sans: 'DM Sans', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
   body::before {
     content: '';
     position: fixed;
@@ -894,6 +894,33 @@
   }
   .img-preset-btn:hover .img-preset-del { display: flex; }
 </style>
+<script>
+// Fix for mobile address bar causing scroll-to-top on vh change.
+// Uses --app-height CSS variable instead of 100vh where needed.
+(function() {
+  function setAppHeight() {
+    // Use visualViewport if available — it excludes browser chrome
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+  }
+  setAppHeight();
+  // visualViewport fires resize when address bar hides/shows
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight);
+  } else {
+    window.addEventListener('resize', setAppHeight);
+  }
+  // Prevent scroll-to-top: lock scroll position on visualViewport resize
+  if (window.visualViewport) {
+    let lastScrollY = 0;
+    window.addEventListener('scroll', () => { lastScrollY = window.scrollY; }, { passive: true });
+    window.visualViewport.addEventListener('resize', () => {
+      // Restore scroll position after browser chrome changes
+      requestAnimationFrame(() => { window.scrollTo(0, lastScrollY); });
+    });
+  }
+})();
+</script>
 </head>
 <body>
 
@@ -3809,8 +3836,12 @@ function init() {
       _uploadBtnAnimToESP(key, preset);
     } else {
       delete _mapping[key];
-      // Clear ESP slot
-      fetch(ESP_IP + '/btn_anim/' + key, { method: 'DELETE', headers: {'Access-Control-Allow-Origin':'*'} }).catch(() => {});
+      // Clear ESP slot (POST with CLEAR body — ESP WebServer doesn't support DELETE)
+      fetch(ESP_IP + '/btn_anim/' + key, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: 'CLEAR'
+      }).catch(() => {});
     }
     if (window.fsSaveBtnMapping) {
       requireAuth(() => window.fsSaveBtnMapping({..._mapping}).catch(() => showToast('Ошибка сохранения', 'err')));
@@ -3839,15 +3870,21 @@ function init() {
           if (px[i*4] > 127) buf[base + 2 + (i>>3)] |= (1 << (7-(i&7)));
         if (++loaded === frameCount) {
           const b64 = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(buf);
-          fetch(ESP_IP + '/btn_anim/' + key, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: b64
-          }).then(async r => {
-            const txt = await r.text();
-            if (r.ok) showToast('Назначено на кнопку', 'ok');
-            else showToast('Ошибка ESP: ' + txt, 'err');
-          }).catch(() => showToast('ESP недоступен', 'err'));
+          const doUpload = (attempt) => {
+            fetch(ESP_IP + '/btn_anim/' + key, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: b64
+            }).then(async r => {
+              const txt = await r.text();
+              if (r.ok) showToast('Назначено: ' + (preset.name||'GIF'), 'ok');
+              else showToast('Ошибка ESP: ' + txt, 'err');
+            }).catch(() => {
+              if (attempt < 2) setTimeout(() => doUpload(attempt + 1), 1500);
+              else showToast('ESP недоступен', 'err');
+            });
+          };
+          doUpload(1);
         }
       };
       img.src = f.dataUrl;
@@ -3862,10 +3899,14 @@ function init() {
   window.onBtnMappingLoaded = function(mapping) {
     _mapping = mapping || {};
     _rebuildAndRestore(cloudImagePresets);
-    // Re-upload all assigned GIFs to ESP after page reload
+    // Re-upload all assigned GIFs to ESP after page reload (staggered)
+    let uploadDelay = 500;
     Object.entries(_mapping).forEach(([key, presetId]) => {
       const preset = cloudImagePresets.find(p => p.id === presetId);
-      if (preset && preset.isGif) _uploadBtnAnimToESP(key, preset);
+      if (preset && preset.isGif) {
+        setTimeout(() => _uploadBtnAnimToESP(key, preset), uploadDelay);
+        uploadDelay += 2000; // stagger: 2s between each upload
+      }
     });
   };
 
@@ -3874,10 +3915,14 @@ function init() {
   window.onImagePresetsLoaded = function(presets) {
     if (_origOnImagePresetsLoaded) _origOnImagePresetsLoaded(presets);
     _rebuildAndRestore(presets);
-    // Re-upload any assigned GIFs that are now available
+    // Re-upload any assigned GIFs (staggered to avoid OOM on ESP)
+    let _rd = 500;
     Object.entries(_mapping).forEach(([key, presetId]) => {
       const preset = presets.find(p => p.id === presetId);
-      if (preset && preset.isGif) _uploadBtnAnimToESP(key, preset);
+      if (preset && preset.isGif) {
+        setTimeout(() => _uploadBtnAnimToESP(key, preset), _rd);
+        _rd += 2000;
+      }
     });
   };
 
