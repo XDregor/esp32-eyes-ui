@@ -1124,7 +1124,7 @@
             </div>
         <div class="ba-tile ba-tile-l3" id="baRow_left_hold" onclick="openBaTileSelect('left_hold')">
               <div class="ba-tile-dot" id="baDot_left_hold"></div>
-              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">||</span>удержание</div>
               <div class="ba-tile-preview" id="baPreview_left_hold">
                 <canvas id="baCanvas_left_hold" width="128" height="64"></canvas>
                 <div class="ba-tile-preview-gif" id="baGifBadge_left_hold" style="display:none">GIF</div>
@@ -1135,7 +1135,7 @@
             </div>
         <div class="ba-tile ba-tile-r3" id="baRow_right_hold" onclick="openBaTileSelect('right_hold')">
               <div class="ba-tile-dot" id="baDot_right_hold"></div>
-              <div class="ba-tile-label"><span class="ba-tile-label-icon">⏸</span>удержание</div>
+              <div class="ba-tile-label"><span class="ba-tile-label-icon">||</span>удержание</div>
               <div class="ba-tile-preview" id="baPreview_right_hold">
                 <canvas id="baCanvas_right_hold" width="128" height="64"></canvas>
                 <div class="ba-tile-preview-gif" id="baGifBadge_right_hold" style="display:none">GIF</div>
@@ -3749,7 +3749,15 @@ function init() {
       list.appendChild(empty);
     }
 
-    cloudImagePresets.forEach(preset => {
+    // Only GIF presets for button actions
+    const gifPresets = cloudImagePresets.filter(p => p.isGif);
+    if (gifPresets.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:24px;font-family:var(--mono);font-size:10px;color:var(--text-dim);';
+      empty.textContent = 'Нет сохранённых GIF анимаций';
+      list.appendChild(empty);
+    }
+    gifPresets.forEach(preset => {
       const item = document.createElement('div');
       item.className = 'ba-picker-item' + (_mapping[key] === preset.id ? ' selected' : '');
       item.onclick = () => { _pickPreset(key, preset); closeBaPicker(); };
@@ -3777,7 +3785,7 @@ function init() {
       list.appendChild(item);
 
       _animPickerItem(preset.id, preset, canvas);
-    });
+    }); // gifPresets.forEach
 
     // Open sheet
     const picker = document.getElementById('baPicker');
@@ -3795,10 +3803,55 @@ function init() {
 
   function _pickPreset(key, preset) {
     _applyTilePreset(key, preset);
-    if (preset) _mapping[key] = preset.id; else delete _mapping[key];
+    if (preset) {
+      _mapping[key] = preset.id;
+      // Upload GIF to ESP slot
+      _uploadBtnAnimToESP(key, preset);
+    } else {
+      delete _mapping[key];
+      // Clear ESP slot
+      fetch(ESP_IP + '/btn_anim/' + key, { method: 'DELETE', headers: {'Access-Control-Allow-Origin':'*'} }).catch(() => {});
+    }
     if (window.fsSaveBtnMapping) {
       requireAuth(() => window.fsSaveBtnMapping({..._mapping}).catch(() => showToast('Ошибка сохранения', 'err')));
     }
+  }
+
+  function _uploadBtnAnimToESP(key, preset) {
+    if (!preset.isGif || !preset.gifData || preset.gifData.length === 0) return;
+    const frames = preset.gifData;
+    const frameCount = frames.length;
+    const buf = new Uint8Array(2 + frameCount * 1026);
+    buf[0] = (frameCount >> 8) & 0xFF;
+    buf[1] = frameCount & 0xFF;
+    let loaded = 0;
+    frames.forEach((f, fi) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+        c.getContext('2d').drawImage(img, 0, 0, 128, 64);
+        const px = c.getContext('2d').getImageData(0,0,128,64).data;
+        const base = 2 + fi * 1026;
+        const delay = Math.min(f.delay || 100, 65535);
+        buf[base]   = (delay >> 8) & 0xFF;
+        buf[base+1] = delay & 0xFF;
+        for (let i = 0; i < 128*64; i++)
+          if (px[i*4] > 127) buf[base + 2 + (i>>3)] |= (1 << (7-(i&7)));
+        if (++loaded === frameCount) {
+          const b64 = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(buf);
+          fetch(ESP_IP + '/btn_anim/' + key, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: b64
+          }).then(async r => {
+            const txt = await r.text();
+            if (r.ok) showToast('Назначено на кнопку', 'ok');
+            else showToast('Ошибка ESP: ' + txt, 'err');
+          }).catch(() => showToast('ESP недоступен', 'err'));
+        }
+      };
+      img.src = f.dataUrl;
+    });
   }
 
   // ── no-op stubs kept for compat ──────────────────────────────
@@ -3809,6 +3862,11 @@ function init() {
   window.onBtnMappingLoaded = function(mapping) {
     _mapping = mapping || {};
     _rebuildAndRestore(cloudImagePresets);
+    // Re-upload all assigned GIFs to ESP after page reload
+    Object.entries(_mapping).forEach(([key, presetId]) => {
+      const preset = cloudImagePresets.find(p => p.id === presetId);
+      if (preset && preset.isGif) _uploadBtnAnimToESP(key, preset);
+    });
   };
 
   // ── When image presets update ─────────────────────────────────
@@ -3816,6 +3874,11 @@ function init() {
   window.onImagePresetsLoaded = function(presets) {
     if (_origOnImagePresetsLoaded) _origOnImagePresetsLoaded(presets);
     _rebuildAndRestore(presets);
+    // Re-upload any assigned GIFs that are now available
+    Object.entries(_mapping).forEach(([key, presetId]) => {
+      const preset = presets.find(p => p.id === presetId);
+      if (preset && preset.isGif) _uploadBtnAnimToESP(key, preset);
+    });
   };
 
   // ── Fire action ───────────────────────────────────────────────
