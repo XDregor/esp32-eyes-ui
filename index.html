@@ -3754,7 +3754,7 @@ function init() {
       const bytes = new Uint8Array(1024);
       for (let i = 0; i < 128*64; i++)
         if (px[i*4] > 127) bytes[i>>3] |= (1 << (7-(i&7)));
-      fetch(ESP_IP + '/bitmap', { method:'POST', headers:{'Content-Type':'application/octet-stream'}, body: bytes }).catch(()=>{});
+      fetch(ESP_IP + '/bitmap', { method:'POST', headers:{'Content-Type':'text/plain'}, body: new Blob([bytes]) }).catch(()=>{});
     };
     img.src = preset.dataUrl;
   }
@@ -3776,7 +3776,7 @@ function init() {
         for (let i = 0; i < 128*64; i++)
           if (px[i*4] > 127) buf[fpos + 2 + (i>>3)] |= (1 << (7-(i&7)));
         if (++loaded === frames.length) {
-          fetch(ESP_IP + '/animation', { method:'POST', headers:{'Content-Type':'application/octet-stream'}, body: buf }).catch(()=>{});
+          fetch(ESP_IP + '/animation', { method:'POST', headers:{'Content-Type':'text/plain'}, body: new Blob([buf]) }).catch(()=>{});
         }
       };
       img.src = f.dataUrl;
@@ -4471,11 +4471,11 @@ const GifParser = (() => {
     const bytes = new Uint8Array(1024);
     for (let i = 0; i < 128*64; i++)
       if (px[i*4] > 127) bytes[i >> 3] |= (1 << (7 - (i & 7)));
-    console.log('[bitmap] sending bytes:', bytes.length, 'buffer:', bytes.buffer.byteLength);
+    console.log('[bitmap] sending bytes:', bytes.length);
     fetch(ESP_IP + '/bitmap', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: bytes
+      headers: { 'Content-Type': 'text/plain' },
+      body: new Blob([bytes])
     }).then(async r => {
       const txt = await r.text();
       console.log('[bitmap] response:', r.status, txt);
@@ -4504,8 +4504,8 @@ const GifParser = (() => {
     console.log('[animation] frameCount:', frameCount, 'buf.length:', buf.length);
     fetch(ESP_IP + '/animation', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: buf
+      headers: { 'Content-Type': 'text/plain' },
+      body: new Blob([buf])
     }).then(async r => {
       const txt = await r.text();
       console.log('[animation] response:', r.status, txt);
