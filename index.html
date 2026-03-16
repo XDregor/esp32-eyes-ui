@@ -1318,7 +1318,7 @@
           <select id="paramSelect"><option value="lux">Illuminance</option><option value="bmp_temp">Temperature</option><option value="pressure">Pressure</option><option value="altitude">Altitude</option></select>
         </div>
       </div>
-      <div class="card-body" style="padding:12px;"><canvas id="sensorChart" height="160"></canvas></div>
+      <div class="card-body" style="padding:12px;"><div style="position:relative;height:160px;"><canvas id="sensorChart"></canvas></div></div>
     </div>
   </div>
 
@@ -1889,7 +1889,8 @@ const STL_URL = './MONSTRIX_head.stl';
 
 // ========== 3D MODEL STATE ==========
 let three = { renderer:null, scene:null, camera:null, mesh:null, animFrameId:null, initialized:false, loaded:false };
-let cf = { pitch:0, roll:0, yaw:0, lastTime:null, alpha:0.96 };
+let cf = { pitch:0, roll:0, yaw:0, lastTime:null, alpha:0.92 };
+const CF_GYRO_DEADBAND = 0.015; // rad/s — ignore gyro noise below this threshold
 let lastMpuData = { ax:0, ay:0, az:1, gx:0, gy:0, gz:0 };
 let model3dVisible = false;
 
@@ -2969,15 +2970,32 @@ function showPlaceholderModel() {
 }
 
 function updateComplementaryFilter(ax, ay, az, gx, gy, gz, dt) {
-  const safeDt = Math.max(0.001, Math.min(dt, 0.2));
+  const safeDt = Math.max(0.001, Math.min(dt, 0.1));
+
+  // Apply deadband — zero out gyro values below noise floor to prevent drift
+  const gdx = Math.abs(gx) > CF_GYRO_DEADBAND ? gx : 0;
+  const gdy = Math.abs(gy) > CF_GYRO_DEADBAND ? gy : 0;
+  const gdz = Math.abs(gz) > CF_GYRO_DEADBAND ? gz : 0;
+
   const accMag = Math.sqrt(ax*ax+ay*ay+az*az);
-  if (accMag < 0.5) return;
-  const axN=ax/accMag, ayN=ay/accMag, azN=az/accMag;
+  // Only trust accelerometer near 1g (not during strong movement)
+  if (accMag < 0.3 || accMag > 1.8) {
+    // No accel correction — just integrate gyro with deadband
+    cf.pitch += gdy * safeDt;
+    cf.roll  += gdx * safeDt;
+    cf.yaw   += gdz * safeDt;
+    return;
+  }
+
+  const axN = ax/accMag, ayN = ay/accMag, azN = az/accMag;
   const accelPitch = Math.atan2(-axN, azN);
   const accelRoll  = Math.atan2( ayN, azN);
-  cf.pitch = cf.alpha*(cf.pitch+gy*safeDt)+(1-cf.alpha)*accelPitch;
-  cf.roll  = cf.alpha*(cf.roll +gx*safeDt)+(1-cf.alpha)*accelRoll;
-  cf.yaw  += gz*safeDt;
+
+  cf.pitch = cf.alpha*(cf.pitch + gdy*safeDt) + (1-cf.alpha)*accelPitch;
+  cf.roll  = cf.alpha*(cf.roll  + gdx*safeDt) + (1-cf.alpha)*accelRoll;
+  // Yaw: no absolute reference from accel — apply deadband + slow drift correction toward 0
+  cf.yaw  += gdz * safeDt;
+  cf.yaw  *= (1 - 0.005 * safeDt * 60); // gentle decay toward 0 when idle
 }
 
 function applyOrientationToModel() {
@@ -3440,17 +3458,49 @@ function draw() {
 function initChart() {
   const chartCtx = document.getElementById('sensorChart').getContext('2d');
   chart = new Chart(chartCtx, {
-    type:'line',
-    data: { labels: Array.from({length:MAX_HISTORY},(_,i)=>i+1), datasets:[{ label:'', data:[], borderColor:'#00ffb3', backgroundColor:'rgba(0,255,179,0.06)', tension:0.3, pointRadius:2, pointBackgroundColor:'#00ffb3', borderWidth:2 }] },
-    options: { responsive:true, maintainAspectRatio:true, scales: { y:{ grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#6b6b8a',font:{family:'Space Mono',size:10}} }, x:{ grid:{display:false}, ticks:{color:'#6b6b8a',font:{family:'Space Mono',size:10}} } }, plugins:{legend:{display:false}} }
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: '',
+        data: [],
+        borderColor: '#00ffb3',
+        backgroundColor: 'rgba(0,255,179,0.06)',
+        tension: 0.3,
+        pointRadius: 2,
+        pointBackgroundColor: '#00ffb3',
+        borderWidth: 2,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 }, maxTicksLimit: 5 }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#6b6b8a', font: { family: 'Space Mono', size: 10 }, maxTicksLimit: 6 }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
   });
 }
 
 function updateChart() {
   if (!chart) return;
-  const p=document.getElementById('paramSelect').value;
-  const dm={lux:historyLux, bmp_temp:historyBmpTemp, pressure:historyPressure, altitude:historyAltitude};
-  chart.data.datasets[0].data=dm[p]||[]; chart.update();
+  const p = document.getElementById('paramSelect').value;
+  const dm = { lux: historyLux, bmp_temp: historyBmpTemp, pressure: historyPressure, altitude: historyAltitude };
+  const data = dm[p] || [];
+  // Labels match data length — always in sync
+  chart.data.labels = Array.from({ length: data.length }, (_, i) => i + 1);
+  chart.data.datasets[0].data = data;
+  chart.update('none'); // 'none' mode skips animation for live data
 }
 
 function toggleGraph(btn) {
@@ -4533,7 +4583,7 @@ const GifParser = (() => {
     _setEspBtnSend();
     lastSentState = '';
     sendUpdateToESP();
-    showToast('Анимация остановлена', 'ok');
+    showToast('Режим восстановлен', 'ok');
   };
 
   window.sendImageToESP = function() {
@@ -4546,6 +4596,7 @@ const GifParser = (() => {
       }
       _sendGifToESP();
     } else {
+      // Bitmap: show ПРЕРВАТЬ handled inside _sendBitmapToESP
       _sendBitmapToESP();
     }
   };
@@ -4557,6 +4608,9 @@ const GifParser = (() => {
     const bytes = new Uint8Array(1024);
     for (let i = 0; i < 128*64; i++)
       if (px[i*4] > 127) bytes[i >> 3] |= (1 << (7 - (i & 7)));
+    // Show ПРЕРВАТЬ while image is displayed on ESP
+    _loopActive = true;
+    _setEspBtnStop();
     console.log('[bitmap] sending bytes:', bytes.length);
     const _b64bmp = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(bytes);
     fetch(ESP_IP + '/bitmap', {
@@ -4566,8 +4620,20 @@ const GifParser = (() => {
     }).then(async r => {
       const txt = await r.text();
       console.log('[bitmap] response:', r.status, txt);
-      showToast(r.ok ? 'Отправлено на ESP' : ('Ошибка ESP: ' + txt), r.ok ? 'ok' : 'err');
-    }).catch(e => { console.error('[bitmap] fetch error:', e); showToast('ESP недоступен', 'err'); });
+      if (!r.ok) {
+        _loopActive = false;
+        _setEspBtnSend();
+        showToast('Ошибка ESP: ' + txt, 'err');
+      } else {
+        showToast('Отображается на ESP', 'ok');
+        // Button stays as ПРЕРВАТЬ until user manually stops
+      }
+    }).catch(e => {
+      console.error('[bitmap] fetch error:', e);
+      _loopActive = false;
+      _setEspBtnSend();
+      showToast('ESP недоступен', 'err');
+    });
   }
 
   function _sendGifToESP() {
