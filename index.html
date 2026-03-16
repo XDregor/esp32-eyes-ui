@@ -1929,65 +1929,9 @@ async function deleteImagePreset(id, name) {
 }
 
 function applyImagePreset(preset) {
-  if (preset.isGif && preset.gifData) {
-    // Restore GIF state
-    window._gifFrames = preset.gifData.map(f => {
-      // Convert dataUrl back to packed bitmap
-      const img = new Image();
-      const c = document.createElement('canvas');
-      c.width = 128; c.height = 64;
-      img.onload = () => c.getContext('2d').drawImage(img, 0, 0, 128, 64);
-      img.src = f.dataUrl;
-      // packed: we'll rebuild on send via canvas
-      return { dataUrl: f.dataUrl, delay: f.delay, _canvas: c };
-    });
-    // Show in preview — animate
-    document.getElementById('imgPreviewSection').style.display = 'block';
-    document.getElementById('imgDropzone').style.display = 'none';
-    document.getElementById('imgGifInfo').style.display = 'flex';
-    document.getElementById('imgGifIndicator').style.display = 'block';
-    document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
-    document.getElementById('imgBwMeta').textContent = `${preset.gifData.length} кадров`;
-    document.getElementById('imgGifFrames').textContent = `${preset.gifData.length} кадров (пресет)`;
-    document.getElementById('imgOrigMeta').textContent = preset.name || 'GIF';
-    // Animate bwCanvas from preset frames
-    let fi = 0;
-    let gifTimer = null;
-    const playPresetFrame = () => {
-      const frame = preset.gifData[fi];
-      const bwCanvas = document.getElementById('imgBwCanvas');
-      const img = new Image();
-      img.onload = () => {
-        bwCanvas.width = 128; bwCanvas.height = 64;
-        bwCanvas.getContext('2d').drawImage(img, 0, 0);
-        document.getElementById('imgGifIndicator').textContent = `▶ ${fi+1}/${preset.gifData.length}`;
-      };
-      img.src = frame.dataUrl;
-      fi = (fi + 1) % preset.gifData.length;
-      gifTimer = setTimeout(playPresetFrame, frame.delay || 100);
-    };
-    playPresetFrame();
-    showToast('GIF пресет загружен', 'ok');
-  } else {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.getElementById('imgBwCanvas');
-      c.width = 128; c.height = 64;
-      c.getContext('2d').drawImage(img, 0, 0, 128, 64);
-      window._imgBwCanvas = c;
-      const orig = document.getElementById('imgOrigCanvas');
-      orig.width = img.width; orig.height = img.height;
-      orig.getContext('2d').drawImage(img, 0, 0);
-      document.getElementById('imgOrigMeta').textContent = preset.name || 'IMAGE';
-      document.getElementById('imgGifInfo').style.display = 'none';
-      document.getElementById('imgGifIndicator').style.display = 'none';
-      document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
-      document.getElementById('imgBwMeta').textContent = '128 × 64 px';
-      document.getElementById('imgPreviewSection').style.display = 'block';
-      document.getElementById('imgDropzone').style.display = 'none';
-      showToast('Пресет загружен', 'ok');
-    };
-    img.src = preset.dataUrl;
+  // Delegate to image module which owns all GIF state
+  if (window._applyImagePresetInternal) {
+    window._applyImagePresetInternal(preset);
   }
 }
 let cloudTextPresets = [];   // [{id, lang, text}]
@@ -4350,6 +4294,93 @@ const GifParser = (() => {
   function _stopGifPlayback() {
     if (_gifPlayTimer) { clearTimeout(_gifPlayTimer); _gifPlayTimer = null; }
   }
+
+  // ── Apply preset from СОХРАНЁННЫЕ (runs inside module — has full state access) ──
+  window._applyImagePresetInternal = function(preset) {
+    _stopGifPlayback();
+    _srcFile  = null;
+    _srcImage = null;
+    _isGif    = false;
+    _gifFrames = [];
+    _gifCurFrame = 0;
+
+    if (preset.isGif && preset.gifData && preset.gifData.length > 0) {
+      const frames = preset.gifData;
+      const total  = frames.length;
+      let loaded   = 0;
+      const packedFrames = new Array(total);
+
+      // Show preview section immediately
+      document.getElementById('imgPreviewSection').style.display = 'block';
+      document.getElementById('imgDropzone').style.display = 'none';
+      document.getElementById('imgGifInfo').style.display = 'flex';
+      document.getElementById('imgGifIndicator').style.display = 'block';
+      document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
+      document.getElementById('imgBwMeta').textContent = `${total} кадров`;
+      document.getElementById('imgGifFrames').textContent = `${total} кадров (пресет)`;
+      document.getElementById('imgOrigMeta').textContent = preset.name || 'GIF';
+
+      // Draw first frame in ORIGINAL canvas as thumbnail
+      const firstImg = new Image();
+      firstImg.onload = () => {
+        const origCanvas = document.getElementById('imgOrigCanvas');
+        origCanvas.width = firstImg.width || 128;
+        origCanvas.height = firstImg.height || 64;
+        origCanvas.getContext('2d').drawImage(firstImg, 0, 0);
+      };
+      firstImg.src = frames[0].dataUrl;
+
+      // Convert each dataUrl → packed Uint8Array
+      frames.forEach((f, fi) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = W; c.height = H;
+          c.getContext('2d').drawImage(img, 0, 0, W, H);
+          const px = c.getContext('2d').getImageData(0, 0, W, H).data;
+          const packed = new Uint8Array(1024);
+          for (let i = 0; i < W * H; i++)
+            if (px[i * 4] > 127) packed[i >> 3] |= (1 << (7 - (i & 7)));
+          packedFrames[fi] = { packed, delay: f.delay || 100 };
+          loaded++;
+          if (loaded === total) {
+            // All frames ready — start playback
+            _isGif = true;
+            _gifFrames = packedFrames;
+            _gifCurFrame = 0;
+            window._gifFrames = _gifFrames; // expose for sendGifToESP
+            _playGifFrame();
+            showToast('GIF пресет загружен', 'ok');
+          }
+        };
+        img.src = f.dataUrl;
+      });
+
+    } else if (preset.dataUrl) {
+      // Static image
+      const img = new Image();
+      img.onload = () => {
+        const origCanvas = document.getElementById('imgOrigCanvas');
+        origCanvas.width = img.width; origCanvas.height = img.height;
+        origCanvas.getContext('2d').drawImage(img, 0, 0);
+
+        const bwCanvas = document.getElementById('imgBwCanvas');
+        bwCanvas.width = W; bwCanvas.height = H;
+        bwCanvas.getContext('2d').drawImage(img, 0, 0, W, H);
+        window._imgBwCanvas = bwCanvas;
+
+        document.getElementById('imgOrigMeta').textContent = preset.name || 'IMAGE';
+        document.getElementById('imgGifInfo').style.display = 'none';
+        document.getElementById('imgGifIndicator').style.display = 'none';
+        document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
+        document.getElementById('imgBwMeta').textContent = '128 × 64 px';
+        document.getElementById('imgPreviewSection').style.display = 'block';
+        document.getElementById('imgDropzone').style.display = 'none';
+        showToast('Пресет загружен', 'ok');
+      };
+      img.src = preset.dataUrl;
+    }
+  };
 
   // ── Convert to 128×64 B&W (static) or reconvert GIF frames ────
   window.convertImage = function() {
