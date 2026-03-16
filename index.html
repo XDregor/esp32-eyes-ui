@@ -1543,18 +1543,50 @@
   }
 
   // ---- Subscribe to lease ----
+  let _leaseExpireTimer = null;
+
   function subscribeLease(uid, displayName) {
     if (leaseUnsub) { leaseUnsub(); leaseUnsub = null; }
+    if (_leaseExpireTimer) { clearTimeout(_leaseExpireTimer); _leaseExpireTimer = null; }
+
     leaseUnsub = onSnapshot(LEASE_DOC, async (snap) => {
+      if (_leaseExpireTimer) { clearTimeout(_leaseExpireTimer); _leaseExpireTimer = null; }
       const now = Date.now();
+
+      // No lease or expired — grab it immediately
       if (!snap.exists() || snap.data().expiresAt < now) {
         await acquireLease(uid, displayName).catch(console.error);
         return;
       }
+
       leaseState = snap.data();
       const isMine = leaseState.uid === uid && leaseState.sessionId === SESSION_ID;
+
+      // Same account, different session (e.g. page reload) — grab immediately
+      if (!isMine && leaseState.uid === uid) {
+        await acquireLease(uid, displayName).catch(console.error);
+        return;
+      }
+
       window.isController = isMine;
       window.onLeaseChange(isMine, leaseState);
+
+      // Schedule auto-grab when lease expires (Firestore won't push on timeout)
+      if (!isMine) {
+        const msLeft = leaseState.expiresAt - now;
+        if (msLeft > 0) {
+          _leaseExpireTimer = setTimeout(async () => {
+            _leaseExpireTimer = null;
+            // Re-check: maybe lease was renewed by the real controller
+            try {
+              const fresh = await getDoc(LEASE_DOC);
+              if (!fresh.exists() || fresh.data().expiresAt < Date.now()) {
+                await acquireLease(uid, displayName);
+              }
+            } catch(e) { console.error('lease expire check:', e); }
+          }, msLeft + 500); // +500ms grace
+        }
+      }
     });
   }
 
