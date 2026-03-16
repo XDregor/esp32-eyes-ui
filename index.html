@@ -657,6 +657,8 @@
   .img-action-btn.secondary:hover { background: rgba(0,255,179,0.08); }
   .img-action-btn.ghost { flex: 0 0 auto; background: none; border-color: var(--border); color: var(--text-muted); padding: 10px 14px; }
   .img-action-btn.ghost:hover { color: var(--accent); border-color: rgba(0,255,179,0.3); }
+  .img-action-btn.stop { background: rgba(255,77,109,0.12); border-color: rgba(255,77,109,0.5); color: var(--red); }
+  .img-action-btn.stop:hover { background: rgba(255,77,109,0.2); }
   /* image presets grid */
   .img-presets-label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; }
   .img-presets-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
@@ -824,7 +826,7 @@
   .ba-picker-item:hover, .ba-picker-item.selected { border-color: rgba(0,255,179,0.5); }
   .ba-picker-item.selected { background: rgba(0,255,179,0.06); }
   .ba-picker-item-preview {
-    width: 100%; height: 40px; background: #000; position: relative;
+    width: 100%; aspect-ratio: 2 / 1; background: #000; position: relative;
   }
   .ba-picker-item-preview canvas {
     width: 100%; height: 100%;
@@ -1419,7 +1421,7 @@
       <!-- Actions -->
       <div class="img-actions">
         <div class="img-actions-row">
-          <button class="img-action-btn" onclick="sendImageToESP()">
+          <button class="img-action-btn" id="sendEspBtn" onclick="sendImageToESP()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             НА ESP
           </button>
@@ -4082,6 +4084,7 @@ const GifParser = (() => {
   // GIF state
   let _isGif        = false;
   let _loopGif      = false;  // repeat animation infinitely
+  let _loopActive   = false;  // currently looping
   let _gifFrames    = [];   // [{bitmap: ImageData 128x64 packed Uint8Array, delay: ms}]
   let _gifPlayTimer = null;
   let _gifCurFrame  = 0;
@@ -4448,12 +4451,15 @@ const GifParser = (() => {
     _loopGif = !_loopGif;
     btn.textContent = _loopGif ? 'ON' : 'OFF';
     btn.classList.toggle('active', _loopGif);
+    if (!_loopGif && _loopActive) {
+      stopLoopESP();
+    }
   };
 
   window.resetImageConverter = function() {
     _stopGifPlayback();
     _srcImage = null; _srcFile = null; _isGif = false; _gifFrames = [];
-    _dither = 'none'; _scale = 'fit'; _threshold = 128; _invert = false;
+    _dither = 'none'; _scale = 'fit'; _threshold = 128; _invert = false; _loopActive = false; _setEspBtnSend();
     window._gifFrames = null;
     document.getElementById('imgPreviewSection').style.display = 'none';
     document.getElementById('imgDropzone').style.display = '';
@@ -4475,10 +4481,37 @@ const GifParser = (() => {
   };
 
   // ── Send to ESP ───────────────────────────────────────────────
+
+  function _setEspBtnStop() {
+    const btn = document.getElementById('sendEspBtn');
+    if (!btn) return;
+    btn.className = 'img-action-btn stop';
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> ПРЕРВАТЬ';
+    btn.onclick = stopLoopESP;
+  }
+  function _setEspBtnSend() {
+    const btn = document.getElementById('sendEspBtn');
+    if (!btn) return;
+    btn.className = 'img-action-btn';
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> НА ESP';
+    btn.onclick = sendImageToESP;
+  }
+  window.stopLoopESP = function() {
+    _loopActive = false;
+    _setEspBtnSend();
+    lastSentState = '';
+    sendUpdateToESP();
+    showToast('Анимация остановлена', 'ok');
+  };
+
   window.sendImageToESP = function() {
     if (window.currentUser && !window.isController) { showToast('Нет управления', 'err'); return; }
 
     if (_isGif && window._gifFrames && window._gifFrames.length > 0) {
+      if (_loopGif) {
+        _loopActive = true;
+        _setEspBtnStop();
+      }
       _sendGifToESP();
     } else {
       _sendBitmapToESP();
@@ -4529,11 +4562,12 @@ const GifParser = (() => {
       const txt = await r.text();
       console.log('[animation] response:', r.status, txt);
       if (r.ok) {
-        if (_loopGif && _isGif && window._gifFrames && window._gifFrames.length > 0) {
+        if (_loopActive && _isGif && window._gifFrames && window._gifFrames.length > 0) {
           _sendGifToESP(); // loop — send again immediately
         } else {
+          _loopActive = false;
+          _setEspBtnSend();
           showToast(`GIF ${frameCount} кадров отправлен`, 'ok');
-          // Restore previous eye mode on ESP
           lastSentState = '';
           sendUpdateToESP();
         }
