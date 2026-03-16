@@ -1410,6 +1410,10 @@
           <span class="img-ctrl-label">ИНВЕРТ</span>
           <button class="img-toggle" id="invertToggle" data-val="0" onclick="toggleInvert(this)">OFF</button>
         </div>
+        <div class="img-ctrl-row" id="loopCtrlRow" style="display:none;">
+          <span class="img-ctrl-label">LOOP</span>
+          <button class="img-toggle" id="loopToggle" onclick="toggleImgLoop(this)">OFF</button>
+        </div>
       </div>
 
       <!-- Actions -->
@@ -4073,6 +4077,7 @@ const GifParser = (() => {
 
   // GIF state
   let _isGif        = false;
+  let _loopGif      = false;  // repeat animation infinitely
   let _gifFrames    = [];   // [{bitmap: ImageData 128x64 packed Uint8Array, delay: ms}]
   let _gifPlayTimer = null;
   let _gifCurFrame  = 0;
@@ -4161,6 +4166,7 @@ const GifParser = (() => {
     document.getElementById('imgGifInfo').style.display = 'flex';
     document.getElementById('imgGifIndicator').style.display = 'block';
     document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
+    document.getElementById('loopCtrlRow').style.display = '';
     document.getElementById('imgBwMeta').textContent = `${usedFrames.length} кадров`;
 
     _gifCurFrame = 0;
@@ -4313,6 +4319,7 @@ const GifParser = (() => {
       document.getElementById('imgGifIndicator').style.display = 'block';
       document.getElementById('imgBwLabel').textContent = '128 × 64 · GIF';
       document.getElementById('imgBwMeta').textContent = `${total} кадров`;
+      document.getElementById('loopCtrlRow').style.display = '';
       document.getElementById('imgGifFrames').textContent = `${total} кадров (пресет)`;
       document.getElementById('imgOrigMeta').textContent = preset.name || 'GIF';
 
@@ -4433,6 +4440,12 @@ const GifParser = (() => {
     convertImage();
   };
 
+  window.toggleImgLoop = function(btn) {
+    _loopGif = !_loopGif;
+    btn.textContent = _loopGif ? 'ON' : 'OFF';
+    btn.classList.toggle('active', _loopGif);
+  };
+
   window.resetImageConverter = function() {
     _stopGifPlayback();
     _srcImage = null; _srcFile = null; _isGif = false; _gifFrames = [];
@@ -4446,6 +4459,10 @@ const GifParser = (() => {
     document.getElementById('imgGifInfo').style.display = 'none';
     document.getElementById('imgGifIndicator').style.display = 'none';
     document.getElementById('imgBwLabel').textContent = '128 × 64 · B&W';
+    document.getElementById('loopCtrlRow').style.display = 'none';
+    document.getElementById('loopToggle').textContent = 'OFF';
+    document.getElementById('loopToggle').classList.remove('active');
+    _loopGif = false;
     document.getElementById('imgBwMeta').textContent = '128 × 64 px';
     document.querySelectorAll('.img-toggle').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-val="none"]').classList.add('active');
@@ -4511,7 +4528,16 @@ const GifParser = (() => {
     }).then(async r => {
       const txt = await r.text();
       console.log('[animation] response:', r.status, txt);
-      showToast(r.ok ? `GIF ${frameCount} кадров отправлен` : ('Ошибка ESP: ' + txt), r.ok ? 'ok' : 'err');
+      if (r.ok) {
+        if (_loopGif && _isGif && window._gifFrames && window._gifFrames.length > 0) {
+          // ESP finished playing — send again immediately
+          _sendGifToESP();
+        } else {
+          showToast(`GIF ${frameCount} кадров отправлен`, 'ok');
+        }
+      } else {
+        showToast('Ошибка ESP: ' + txt, 'err');
+      }
     }).catch(e => { console.error('[animation] fetch error:', e); showToast('ESP недоступен', 'err'); });
   }
 
