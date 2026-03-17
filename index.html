@@ -3179,7 +3179,7 @@ function toggleEraser() {
 
 function requestEyeSync() {
   if (!ESP_IP) return;
-  fetch(ESP_IP+'/data').then(r=>r.json()).then(data => {
+  fetch(ESP_IP+'/data', {targetAddressSpace:'private'}).then(r=>r.json()).then(data => {
     if (mode==="manual" && !activeEyeDisp && !dragStarted) {
       if (typeof data.left_eye_x==="number") { leftEyeDisp.x=data.left_eye_x; leftEyeDisp.y=data.left_eye_y; }
       if (typeof data.right_eye_x==="number") { rightEyeDisp.x=data.right_eye_x; rightEyeDisp.y=data.right_eye_y; }
@@ -3204,7 +3204,7 @@ function sendUpdateToESP() {
   const stateStr = JSON.stringify(state);
   if (stateStr === lastSentState) return;
   lastSentState = stateStr;
-  fetch(ESP_IP+'/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: stateStr })
+  fetch(ESP_IP+'/update', { targetAddressSpace:'private', method:'POST', headers:{'Content-Type':'application/json'}, body: stateStr })
     .then(r=>{ if (!r.ok) throw new Error(); }).catch(()=>setConnected(false));
 }
 
@@ -3550,7 +3550,7 @@ function setConnected(connected) {
 
 function updateData() {
   if (!ESP_IP) return;
-  fetch(ESP_IP+'/data')
+  fetch(ESP_IP+'/data', {targetAddressSpace:'private'})
     .then(r=>{ if (!r.ok) throw new Error(); setConnected(true); return r.json(); })
     .then(data => {
       updateModel3DFromSensor(data);
@@ -3838,6 +3838,7 @@ function init() {
       delete _mapping[key];
       // Clear ESP slot (POST with CLEAR body — ESP WebServer doesn't support DELETE)
       fetch(ESP_IP + '/btn_anim/' + key, {
+        targetAddressSpace: 'private',
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: 'CLEAR'
@@ -3872,6 +3873,7 @@ function init() {
           const b64 = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(buf);
           const doUpload = (attempt) => {
             fetch(ESP_IP + '/btn_anim/' + key, {
+              targetAddressSpace: 'private',
               method: 'POST',
               headers: { 'Content-Type': 'text/plain' },
               body: b64
@@ -3950,7 +3952,7 @@ function init() {
       const bytes = new Uint8Array(1024);
       for (let i = 0; i < 128*64; i++)
         if (px[i*4] > 127) bytes[i>>3] |= (1 << (7-(i&7)));
-      fetch(ESP_IP + '/bitmap', { method:'POST', headers:{'Content-Type':'text/plain'}, body: _toB64(bytes) })
+      fetch(ESP_IP + '/bitmap', { targetAddressSpace:'private', method:'POST', headers:{'Content-Type':'text/plain'}, body: _toB64(bytes) })
         .then(r => { if (r.ok) { lastSentState = ''; sendUpdateToESP(); } })
         .catch(()=>{});
     };
@@ -3974,7 +3976,7 @@ function init() {
         for (let i = 0; i < 128*64; i++)
           if (px[i*4] > 127) buf[fpos + 2 + (i>>3)] |= (1 << (7-(i&7)));
         if (++loaded === frames.length) {
-          fetch(ESP_IP + '/animation', { method:'POST', headers:{'Content-Type':'text/plain'}, body: _toB64(buf) })
+          fetch(ESP_IP + '/animation', { targetAddressSpace:'private', method:'POST', headers:{'Content-Type':'text/plain'}, body: _toB64(buf) })
             .then(r => { if (r.ok) { lastSentState = ''; sendUpdateToESP(); } })
             .catch(()=>{});
         }
@@ -4722,6 +4724,7 @@ const GifParser = (() => {
     console.log('[bitmap] sending bytes:', bytes.length);
     const _b64bmp = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(bytes);
     fetch(ESP_IP + '/bitmap', {
+      targetAddressSpace: 'private',
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: _b64bmp
@@ -4761,6 +4764,7 @@ const GifParser = (() => {
     console.log('[animation] frameCount:', frameCount, 'buf.length:', buf.length);
     const _b64gif = (u8 => { let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); })(buf);
     fetch(ESP_IP + '/animation', {
+      targetAddressSpace: 'private',
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: _b64gif
