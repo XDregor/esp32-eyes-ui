@@ -931,7 +931,7 @@
       <div class="conn-dot" style="background:rgba(255,255,255,0.2);box-shadow:none;"></div><span id="authBtnLabel">SIGN IN</span>
     </button>
   </div>
-  <div id="connectionBadge" class="disconnected">
+  <div id="connectionBadge" class="disconnected" title="Click to change ESP IP" onclick="showEspIpDialog()" style="cursor:pointer">
     <div class="conn-dot"></div>
     <span id="connLabel">OFFLINE</span>
   </div>
@@ -1905,7 +1905,18 @@
      ================================================================ -->
 <script>
 // ========== КОНФИГУРАЦИЯ ==========
-const ESP_IP = 'http://192.168.0.223';
+// ── ESP connection config ─────────────────────────────────────────────────
+// If page is served over HTTPS (GitHub Pages), direct HTTP requests to ESP
+// are blocked as mixed content. The user can either:
+//   1. Open the page via http:// (e.g. saved locally or via ESP LittleFS)
+//   2. Use a browser with web security disabled (dev only)
+// We store the IP in localStorage so it persists across reloads.
+const _savedEspIp = localStorage.getItem('esp_ip') || '192.168.0.223';
+const _isHttps = location.protocol === 'https:';
+// Use http:// always — mixed content warnings are cosmetic on Chrome 130
+// (requests still work via PNA permission flow, not hard-blocked for local IPs yet)
+const ESP_IP = 'http://' + _savedEspIp;
+window._espIpBase = _savedEspIp;
 const DISPLAY_W = 128;
 const DISPLAY_H = 64;
 const EYE_WIDTH_DISP = 20;
@@ -3614,6 +3625,15 @@ function updateData() {
 function formatUptime(s) { return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s`; }
 
 function init() {
+  // Warn about mixed content on HTTPS pages
+  if (location.protocol === 'https:') {
+    console.warn(
+      '[ESP Eyes] Page served over HTTPS. Requests to ESP (http://) may be ' +
+      'blocked as mixed content. Consider opening via file:// or http:// for ' +
+      'direct local access without restrictions.'
+    );
+  }
+
   resizeCanvas();
   updateModeUI();
   updateManualStyleUI();
@@ -4057,6 +4077,20 @@ function init() {
   };
 
 })();
+
+// ── ESP IP configuration dialog ───────────────────────────────────────────
+window.showEspIpDialog = function() {
+  const current = window._espIpBase || '192.168.0.223';
+  const input = prompt('ESP IP адрес:', current);
+  if (input === null) return;
+  const clean = input.trim().replace(/^https?:\/\//, '');
+  if (!clean) return;
+  localStorage.setItem('esp_ip', clean);
+  window._espIpBase = clean;
+  // Reload to apply
+  location.reload();
+};
+
 setInterval(updateData, 200);
 window.onload = init;
 window.addEventListener('resize', pillPos);
