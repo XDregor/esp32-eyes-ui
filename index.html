@@ -7425,24 +7425,64 @@
 
         const W = 128,
           H = 64;
-        const MAX_GIF_DURATION = 5000; // 5 sec hard cap
-        const MAX_ESP_FRAMES = 18; // keep payload reliable for ESP WebServer
+        const MAX_GIF_DURATION = 20000; // 20 sec hard cap
+        const MAX_ESP_FPS = 20; // smoother playback on ESP while still realistic for SSD1306
+        const MIN_FRAME_MS = 1000 / MAX_ESP_FPS; // 50ms per frame minimum
+        const MAX_ESP_FRAMES = 220; // matches ESP-side limit
+        const ESP_ANIM_CHUNK_RAW_BYTES = 6144; // ~8 KB base64url per chunk
 
-        function _packFramesForEsp(frames) {
-          if (!frames || frames.length <= MAX_ESP_FRAMES) return frames || [];
-          const srcLen = frames.length;
+        // Прореживание кадров до MAX_ESP_FPS кадров/сек.
+        // Алгоритм: накапливаем delay пропущенных кадров и добавляем к следующему
+        // выбранному кадру — итоговая скорость воспроизведения сохраняется точно.
+        function _packFramesForEsp(frames, maxFramesBySize) {
+          if (!frames || frames.length === 0) return [];
+          const frameLimit = Math.max(1, maxFramesBySize || 1);
+
           const out = [];
-          for (let i = 0; i < MAX_ESP_FRAMES; i++) {
-            const start = Math.floor((i * srcLen) / MAX_ESP_FRAMES);
-            const end = Math.max(start + 1, Math.floor(((i + 1) * srcLen) / MAX_ESP_FRAMES));
+          let accumulated = 0; // накопленный delay пропущенных кадров (мс)
+
+          for (let i = 0; i < frames.length; i++) {
+            const f = frames[i];
+            const frameDelay = Math.max(f.delay || 100, 1);
+            accumulated += frameDelay;
+
+            // Берём кадр если накопили достаточно для одного выходного кадра
+            if (accumulated >= MIN_FRAME_MS) {
+              out.push({
+                packed: f.packed,
+                delay: Math.min(Math.round(accumulated), 65535),
+              });
+              accumulated = 0;
+            }
+          }
+
+          // Остаток — добавляем к последнему кадру чтобы не потерять время
+          if (accumulated > 0 && out.length > 0) {
+            out[out.length - 1].delay = Math.min(out[out.length - 1].delay + Math.round(accumulated), 65535);
+          }
+          if (out.length <= frameLimit) return out;
+
+          // Hard downsample by payload size while preserving total playback duration.
+          const reduced = [];
+          const srcLen = out.length;
+          for (let i = 0; i < frameLimit; i++) {
+            const start = Math.floor((i * srcLen) / frameLimit);
+            const end = Math.max(start + 1, Math.floor(((i + 1) * srcLen) / frameLimit));
             let delaySum = 0;
-            for (let j = start; j < end && j < srcLen; j++) delaySum += frames[j].delay || 0;
-            out.push({
-              packed: frames[start].packed,
-              delay: Math.min(Math.max(delaySum, 20), 65535),
+            for (let j = start; j < end && j < srcLen; j++) delaySum += out[j].delay || 0;
+            const sampleIdx = Math.min(end, srcLen) - 1;
+            reduced.push({
+              packed: out[sampleIdx].packed,
+              delay: Math.min(Math.max(Math.round(delaySum), 1), 65535),
             });
           }
-          return out;
+          return reduced;
+        }
+
+        function _u8ToBase64Url(u8) {
+          let s = "";
+          for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+          return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
         }
 
         // ── Load file ──────────────────────────────────────────────────
@@ -8005,7 +8045,7 @@
               }
             })
             .catch((e) => {
-              if (requestId !== _animRequestId || e.name === "AbortError") return;
+              if (e.name === "AbortError") return;
               console.error("[bitmap] fetch error:", e);
               _loopActive = false;
               _setEspBtnSend();
@@ -8013,14 +8053,17 @@
             });
         }
 
-        function _sendGifToESP() {
+        async function _sendGifToESP() {
           if (_animReqInFlight) {
             if (_loopActive) _espLoopTimer = setTimeout(_sendGifToESP, 50);
             return;
           }
-          const frames = _packFramesForEsp(window._gifFrames);
+
+          const srcFrames = window._gifFrames || [];
+          const frames = _packFramesForEsp(srcFrames, MAX_ESP_FRAMES);
           const frameCount = frames.length;
           if (frameCount === 0) return;
+
           const totalBytes = 2 + frameCount * (2 + 1024);
           const buf = new Uint8Array(totalBytes);
           let pos = 0;
@@ -8033,57 +8076,94 @@
             buf.set(f.packed, pos);
             pos += 1024;
           }
-          console.log("[animation] frameCount:", frameCount, "buf.length:", buf.length);
-          const _b64gif = ((u8) => {
-            let s = "";
-            for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
-            return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-          })(buf);
-          const requestId = _animRequestId;
-          _animAbortController = new AbortController();
-          _animReqInFlight = true;
-          fetch(ESP_IP + "/animation", {
-            targetAddressSpace: "private",
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: _b64gif,
-            signal: _animAbortController.signal,
-          })
-            .then(async (r) => {
-              if (requestId !== _animRequestId) return;
-              const txt = await r.text();
-              if (requestId !== _animRequestId) return;
-              console.log("[animation] response:", r.status, txt);
-              if (r.ok) {
-                if (_loopActive && _isGif && window._gifFrames && window._gifFrames.length > 0) {
-                  // ESP is non-blocking: responds immediately after decoding.
-                  // Wait totalMs so next request arrives just as current animation ends.
-                  // This avoids a gap where the old mode would briefly show.
-                  const totalMs = parseInt(txt) || 2000;
-                  _espLoopTimer = setTimeout(_sendGifToESP, Math.max(totalMs - 40, 20));
-                } else {
-                  _loopActive = false;
-                  _setEspBtnSend();
-                  showToast(`GIF ${frameCount} кадров отправлен`, "ok");
-                  const totalMs = parseInt(txt) || 1000;
-                  _scheduleRestoreState(totalMs);
-                }
-              } else {
-                showToast("Ошибка ESP: " + txt, "err");
-              }
-            })
-            .catch((e) => {
-              if (requestId !== _animRequestId || e.name === "AbortError") return;
-              console.error("[animation] fetch error:", e);
-              showToast("ESP недоступен", "err");
-            })
-            .finally(() => {
-              if (requestId !== _animRequestId) return;
-              _animReqInFlight = false;
-              _animAbortController = null;
-            });
-        }
 
+          if (srcFrames.length !== frameCount) {
+            console.warn("[animation] packed:", srcFrames.length, "->", frameCount, "frames (limit:", MAX_ESP_FRAMES, ")");
+          }
+          console.log("[animation] frameCount:", frameCount, "buf.length:", buf.length);
+
+          const requestId = _animRequestId;
+          const abortController = new AbortController();
+          _animAbortController = abortController;
+          _animReqInFlight = true;
+
+          const failEsp = (message) => {
+            _loopActive = false;
+            _setEspBtnSend();
+            showToast(message, "err");
+          };
+
+          try {
+            let r = await fetch(ESP_IP + "/animation_begin", {
+              targetAddressSpace: "private",
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ frameCount, totalBytes: buf.length }),
+              signal: abortController.signal,
+            });
+            let txt = await r.text();
+            if (requestId !== _animRequestId) return;
+            if (!r.ok) {
+              console.log("[animation] begin response:", r.status, txt);
+              failEsp("Ошибка ESP: " + txt);
+              return;
+            }
+
+            const chunkCount = Math.ceil(buf.length / ESP_ANIM_CHUNK_RAW_BYTES);
+            for (let chunkIdx = 0, offset = 0; offset < buf.length; chunkIdx++, offset += ESP_ANIM_CHUNK_RAW_BYTES) {
+              const chunk = buf.slice(offset, Math.min(offset + ESP_ANIM_CHUNK_RAW_BYTES, buf.length));
+              r = await fetch(ESP_IP + "/animation_chunk?offset=" + offset, {
+                targetAddressSpace: "private",
+                method: "POST",
+                headers: { "Content-Type": "text/plain" },
+                body: _u8ToBase64Url(chunk),
+                signal: abortController.signal,
+              });
+              txt = await r.text();
+              if (requestId !== _animRequestId) return;
+              if (!r.ok) {
+                console.log("[animation] chunk response:", r.status, txt, "offset:", offset);
+                failEsp("Ошибка ESP: " + txt);
+                return;
+              }
+              if (chunkCount > 1) console.log("[animation] chunk:", chunkIdx + 1, "/", chunkCount, "written:", txt);
+            }
+
+            r = await fetch(ESP_IP + "/animation_commit", {
+              targetAddressSpace: "private",
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: "OK",
+              signal: abortController.signal,
+            });
+            txt = await r.text();
+            if (requestId !== _animRequestId) return;
+            console.log("[animation] response:", r.status, txt);
+
+            if (!r.ok) {
+              failEsp("Ошибка ESP: " + txt);
+              return;
+            }
+
+            const totalMs = parseInt(txt, 10) || 1000;
+            if (_loopActive && _isGif && window._gifFrames && window._gifFrames.length > 0) {
+              _espLoopTimer = setTimeout(_sendGifToESP, Math.max(totalMs - 40, 20));
+            } else {
+              _loopActive = false;
+              _setEspBtnSend();
+              showToast(`GIF ${frameCount} кадров отправлен`, "ok");
+              _scheduleRestoreState(totalMs);
+            }
+          } catch (e) {
+            if (requestId !== _animRequestId || e.name === "AbortError") return;
+            console.error("[animation] fetch error:", e);
+            failEsp("ESP недоступен");
+          } finally {
+            if (requestId !== _animRequestId) return;
+            _animReqInFlight = false;
+            if (_animAbortController === abortController) _animAbortController = null;
+          }
+        }
         // ── Save as image preset ─────────────────────────────────────
         window.saveImageAsPreset = async function () {
           if (!window.fsAddImagePreset) {
@@ -8132,3 +8212,6 @@
     </div>
   </body>
 </html>
+
+
+
